@@ -55,7 +55,11 @@ function taskDetails(task, full=false) {
     task.blocker && ['阻塞原因',task.blocker],
     task.nextAction && ['解除 / 下一步',task.nextAction],
     task.unmetDependencies?.length && ['尚需等待',task.unmetDependencies.map(d=>d.title + (d.missing?'（未登记）':'')).join('、')],
-    task.evidence && ['完成依据',task.evidence]
+    task.evidence && ['完成依据',task.evidence],
+    task.startsOn && ['计划开始',task.startsOn],
+    task.dueOn && ['计划截止',task.dueOn],
+    task.completedAt && ['记录的实际完成时间',fmt(task.completedAt)],
+    task.scheduleWarning && ['日期待核对',task.scheduleWarning]
   ].filter(Boolean);
   const dependencies=full ? (task.dependsOn||[]).map(id=>{
     const link=taskLink(id), dependency=windowsOf(current).flatMap(w=>w.tasks).find(t=>t.id===id);
@@ -133,6 +137,7 @@ function render(data) {
     return `<tr><td><a class="lane-tag" data-color="${safe(w.color)}" href="${safe(pageHash(w.laneId))}">${safe(w.lane)}</a><a class="window-title window-link" href="${safe(pageHash(w.laneId,{window:w.id}))}">${safe(w.title)} →</a><span class="window-summary">${safe(w.summary)}</span><button class="detail-button" data-window="${safe(w.id)}" aria-expanded="${isOpen}" aria-controls="detail-${safe(w.id)}">${isOpen?'收起详情':'快速查看清单'} ${isOpen?'−':'+'}</button></td><td>${progress}</td><td><div class="todo">${next.length?next.map(t=>`<div>${safe(t.title)}${blocked(t)?'<span class="review">等待依赖或外部条件</span>':''}</div>`).join(''):`<span class="unknown">${w.taskCount?'清单中暂无待办':'尚未登记任务'}</span>`}</div></td><td><span class="status ${w.activity==='进行中'?'active':''}">${safe(w.activity)}</span>${w.needsReview?'<span class="review">● 进度待复核</span>':''}</td><td>${fmt(w.reviewedAt)}<span class="window-summary updated-at">动态 ${fmt(w.updatedAt)}</span></td></tr><tr class="detail-row" id="detail-${safe(w.id)}" ${isOpen?'':'hidden'}><td colspan="5"><div class="evidence-line"><b>记录依据：</b>${safe(w.evidence||'尚未记录')} ${w.owner?` · 负责：${safe(w.owner)}`:''}</div><div class="task-grid">${w.tasks.map(t=>taskDetails(t)).join('')||'<p class="unknown">此窗口暂无任务清单，未计入完成百分比。</p>'}</div></td></tr>`;
   }).join('') || '<tr><td colspan="5">此筛选下暂无窗口。</td></tr>';
   renderDetail();
+  if(typeof renderTimeline==='function')renderTimeline();
   applyColors();
   $('source').textContent = `任务记录${data.sourceHealth.markdownBoards?' · Markdown 看板':''} · 窗口动态${data.sourceHealth.codex==='ok'?'已接入':data.sourceHealth.codex==='disabled'?'未接入':'暂不可用'}`;
 }

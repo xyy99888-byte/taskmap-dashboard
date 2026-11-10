@@ -23,6 +23,22 @@ async function pair(owner,projectId){
 function data(){return {project:'私有项目',generatedAt:new Date().toISOString(),sourceHealth:{codex:'disabled'},lanes:[{id:'main',title:'开发',color:'#5b72e8',windows:[{id:'work',title:'实施窗口',sourceKind:'update',reviewedAt:new Date().toISOString(),tasks:[{id:'one',title:'任务一',status:'done',stage:'local'},{id:'two',title:'任务二',status:'todo',dependsOn:['one']}]}]}]}}
 function upload(device,sequence=1){return syncApi(request('/v1/snapshot','POST',{sequence,snapshot:data()},{authorization:'Bearer '+device.token}),{DB})}
 
+test('schedule and bounded observed history survive cloud normalization without trusting extra fields',()=>{
+  const input=data(),task=input.lanes[0].windows[0].tasks[0];
+  Object.assign(task,{startsOn:'2026-11-10',dueOn:'2026-11-13',completedAt:'2026-11-13T23:00:00+08:00'});
+  input.history={startedAt:'2026-11-10T00:00:00Z',events:Array.from({length:205},(_,i)=>({id:String(i),kind:'status',observedAt:'2026-11-13T15:01:00Z',taskId:'one',status:'done',previousStatus:'todo',total:2,done:1,secret:'not allowed'}))};
+  const result=snapshot(input);
+  assert.equal(result.lanes[0].windows[0].tasks[0].dueOn,'2026-11-13');
+  assert.equal(result.lanes[0].windows[0].tasks[0].completedAt,'2026-11-13T15:00:00.000Z');
+  assert.equal(result.history.events.length,200);
+  assert.equal(result.history.events[0].secret,undefined);
+  task.startsOn='2026-02-30'; task.completedAt='2026-11-13T15:00:00';
+  const invalid=snapshot(input).lanes[0].windows[0].tasks[0];
+  assert.equal(invalid.startsOn,null);assert.equal(invalid.completedAt,null);assert.ok(invalid.scheduleWarning);
+  task.startsOn='2026-11-15';assert.ok(snapshot(input).lanes[0].windows[0].tasks[0].scheduleWarning);
+  assert.deepEqual(snapshot(data()).history.events,[]);
+});
+
 before(async()=>{
   runtime=new Miniflare({modules:true,script:'export default {fetch(){return new Response("test")}}',compatibilityDate:'2026-07-01',d1Databases:['DB']});
   DB=await runtime.getD1Database('DB');

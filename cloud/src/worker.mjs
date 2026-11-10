@@ -57,6 +57,19 @@ async function ownedProject(db,id,owner){
   if(!result)fail(404,'没有找到此项目。');return result;
 }
 function date(value){return typeof value==='string'&&Number.isFinite(Date.parse(value))?new Date(value).toISOString():null}
+function day(value){return typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&date(value)?.slice(0,10)===value?value:null}
+function schedule(task){
+  const startsOn=day(task.startsOn),dueOn=day(task.dueOn);
+  const completedAt=typeof task.completedAt==='string'&&/(Z|[+-]\d{2}:\d{2})$/.test(task.completedAt)?date(task.completedAt):null;
+  const invalid=(task.startsOn&&!startsOn)||(task.dueOn&&!dueOn)||(task.completedAt&&!completedAt)||(startsOn&&dueOn&&startsOn>dueOn);
+  return {startsOn,dueOn,completedAt,scheduleWarning:invalid?'排期日期无效，请核对开始、截止及完成时间。':text(task.scheduleWarning,100)};
+}
+function timelineHistory(value){
+  const count=n=>Math.max(0,Math.min(2000,Math.trunc(Number(n)||0)));
+  return {startedAt:date(value?.startedAt),limit:200,error:value?.error===true,events:(Array.isArray(value?.events)?value.events:[]).slice(0,200).filter(e=>e&&['baseline','added','removed','status','schedule'].includes(e.kind)&&date(e.observedAt)).map(e=>({
+    id:text(e.id,100),kind:e.kind,observedAt:date(e.observedAt),taskId:text(e.taskId,200),laneId:text(e.laneId,100),windowId:text(e.windowId,100),title:text(e.title,240),lane:text(e.lane,160),window:text(e.window,160),status:statuses.has(e.status)?e.status:null,previousStatus:statuses.has(e.previousStatus)?e.previousStatus:null,total:count(e.total),done:Math.min(count(e.done),count(e.total)),...schedule(e)
+  }))};
+}
 
 export function snapshot(input){
   if(!Array.isArray(input?.lanes)||input.lanes.length>60)fail(400,'项目模块格式不正确。');
@@ -73,7 +86,7 @@ export function snapshot(input){
         if(!statuses.has(status)||!task.id||taskIds.has(task.id)||typeof task.title!=='string')fail(400,'任务编号或状态不正确。');
         taskIds.add(task.id);
         return {id:text(task.id,200),title:text(task.title,600),status,done:status==='done',priority:['P0','P1','P2','P3'].includes(task.priority)?task.priority:'P2',
-          stage:text(task.stage,40),acceptance:text(task.acceptance),evidence:text(task.evidence,8000),blocker:text(task.blocker),nextAction:text(task.nextAction),group:text(task.group,200),milestone:text(task.milestone,200),
+          stage:text(task.stage,40),acceptance:text(task.acceptance),evidence:text(task.evidence,8000),blocker:text(task.blocker),nextAction:text(task.nextAction),group:text(task.group,200),milestone:text(task.milestone,200),...schedule(task),
           dependsOn:Array.isArray(task.dependsOn)?task.dependsOn.filter(id=>typeof id==='string').slice(0,100).map(id=>text(id,200)):[]};
       });
       const counted=tasks.filter(t=>t.status!=='cancelled'),done=counted.filter(t=>t.done).length;
@@ -85,7 +98,7 @@ export function snapshot(input){
   });
   const tasks=lanes.flatMap(l=>l.windows.flatMap(w=>w.tasks)),byId=new Map(tasks.map(t=>[t.id,t]));
   for(const task of tasks)task.unmetDependencies=task.dependsOn.filter(id=>!byId.has(id)||!byId.get(id).done).map(id=>({id,title:byId.get(id)?.title||id,missing:!byId.has(id)}));
-  return {project:text(input.project,160)||'未命名项目',scope:text(input.scope,800),lanes,generatedAt:date(input.generatedAt),schemaVersion:2,timezone:text(input.timezone,80)||'Asia/Shanghai',refreshSeconds:10,
+  return {project:text(input.project,160)||'未命名项目',scope:text(input.scope,800),lanes,history:timelineHistory(input.history),generatedAt:date(input.generatedAt),schemaVersion:2,timezone:text(input.timezone,80)||'Asia/Shanghai',refreshSeconds:10,
     warnings:Array.isArray(input.warnings)?input.warnings.slice(0,20).map(x=>text(x,400)):[],sourceHealth:{codex:['ok','partial','disabled','unavailable'].includes(input.sourceHealth?.codex)?input.sourceHealth.codex:'unavailable',markdownBoards:Math.max(0,Math.min(100,Number(input.sourceHealth?.markdownBoards)||0))}};
 }
 

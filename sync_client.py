@@ -100,12 +100,19 @@ def prepare_snapshot(data):
             item = {key: clean_text(window.get(key)) for key in fields}
             item.update(id=public_id('w', window['id']), tasks=[])
             for task in window['tasks']:
-                fields = ('title', 'status', 'priority', 'stage', 'acceptance', 'evidence', 'blocker', 'nextAction', 'group', 'milestone')
+                fields = ('title', 'status', 'priority', 'stage', 'acceptance', 'evidence', 'blocker', 'nextAction', 'group', 'milestone', 'startsOn', 'dueOn', 'completedAt', 'scheduleWarning')
                 record = {key: clean_text(task.get(key)) for key in fields}
                 record.update(id=mapping[task['id']], dependsOn=[mapping.get(key, public_id('missing', key)) for key in task.get('dependsOn', [])])
                 item['tasks'].append(record)
             target['windows'].append(item)
         output['lanes'].append(target)
+    history = data.get('history', {})
+    output['history'] = {'startedAt': history.get('startedAt'), 'limit': 200, 'error': bool(history.get('error')), 'events': []}
+    for event in history.get('events', [])[:200]:
+        item = {key: clean_text(event.get(key)) for key in ('id', 'kind', 'observedAt', 'title', 'lane', 'window', 'status', 'previousStatus', 'total', 'done', 'startsOn', 'dueOn', 'completedAt')}
+        for key, kind in (('taskId', 't'), ('laneId', 'm'), ('windowId', 'w')):
+            item[key] = public_id(kind, event[key]) if event.get(key) else None
+        output['history']['events'].append(item)
     return output
 
 

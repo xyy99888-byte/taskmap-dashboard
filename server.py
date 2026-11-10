@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit, parse_qs
+from timeline import record_history
 
 ROOT = Path(__file__).resolve().parent
 STATES = {"todo", "in_progress", "review", "blocked", "done", "cancelled"}
@@ -60,6 +61,23 @@ def normalize_tasks(tasks, window_id):
         task.update(id=str(task.get("id", f"{window_id}:{index}")), status=state,
                     done=state == "done", dependsOn=dependencies)
         task["priority"] = task.get("priority") if task.get("priority") in {"P0", "P1", "P2", "P3"} else "P2"
+        issues = []
+        for key in ('startsOn', 'dueOn'):
+            value = task.get(key)
+            try:
+                valid = isinstance(value, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}', value) and datetime.strptime(value, '%Y-%m-%d')
+            except ValueError:
+                valid = False
+            task[key] = value if valid else None
+            if value and not valid:
+                issues.append('日期格式有误')
+        if task['startsOn'] and task['dueOn'] and task['startsOn'] > task['dueOn']:
+            issues.append('截止日期早于开始日期')
+        completion = task.get('completedAt')
+        task['completedAt'] = completion if timestamp(completion) is not None else None
+        if completion and not task['completedAt']:
+            issues.append('实际完成时间需要有效日期和时区')
+        task['scheduleWarning'] = '；'.join(dict.fromkeys(issues))
         output.append(task)
     return output
 
@@ -208,6 +226,11 @@ class Dashboard:
                     sourceHealth={"codex": codex_health, "markdownBoards": board_count},
                     refreshSeconds=max(2, min(300, int(config.get("refreshSeconds", 5)))),
                     timezone=config.get("timezone", "Asia/Shanghai"), schemaVersion=2)
+        try:
+            data['history'] = record_history(self.root, project_id, data)
+        except (OSError, sqlite3.Error, ValueError):
+            data['history'] = {'events': [], 'limit': 200, 'error': True}
+            data['warnings'].append('时间轴历史暂时不可用；当前任务状态仍可查看。')
         return data
 
 
@@ -228,6 +251,7 @@ def handler_for(dashboard):
                     self.respond(503, "application/json; charset=utf-8", json.dumps({"error": "项目数据格式有误或暂时不可读。请检查配置及 JSON 文件。"}, ensure_ascii=False).encode("utf-8"))
                 return
             files = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"), "/style.css": ("style.css", "text/css"), "/favicon.svg": ("favicon.svg", "image/svg+xml")}
+            files['/timeline.js'] = ('timeline.js', 'text/javascript')
             if path not in files:
                 self.respond(404, "text/plain", b"Not found")
                 return

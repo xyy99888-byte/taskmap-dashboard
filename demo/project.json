@@ -3,38 +3,132 @@
   "scope": "虚构演示数据。按有记录的任务计算完成比例，未建清单的支线单独标注。",
   "lanes": [
     {
-      "id": "product", "title": "产品与界面", "color": "#5b72e8",
-      "windows": [{
-        "id": "design", "title": "界面与交互", "owner": "设计支线",
-        "reviewedAt": "2026-11-01T09:00:00Z", "summary": "基础页面已完成，等待交互验收。",
-        "evidence": "示例：已完成页面的本地走查。",
-        "tasks": [
-          {"id": "page-layout", "title": "完成核心页面布局", "status": "done", "priority": "P1", "stage": "local", "milestone": "可用原型", "acceptance": "主要页面在桌面和手机宽度下可用", "evidence": "演示：页面截图及走查记录"},
-          {"id": "interaction-review", "title": "核对交互与异常状态", "status": "review", "priority": "P1", "milestone": "可用原型", "dependsOn": ["page-layout"], "acceptance": "加载、空状态、错误状态都有明确反馈"}
-        ]
-      }]
+      "id": "product",
+      "title": "产品与界面",
+      "color": "#5b72e8",
+      "windows": [
+        {
+          "id": "design",
+          "title": "界面与交互",
+          "owner": "设计支线",
+          "reviewedAt": "2026-11-01T09:00:00Z",
+          "summary": "基础页面已完成，等待交互验收。",
+          "evidence": "示例：已完成页面的本地走查。",
+          "tasks": [
+            {
+              "id": "page-layout",
+              "title": "完成核心页面布局",
+              "status": "done",
+              "priority": "P1",
+              "stage": "local",
+              "milestone": "可用原型",
+              "acceptance": "主要页面在桌面和手机宽度下可用",
+              "evidence": "演示：页面截图及走查记录",
+              "startsOn": "2026-11-05",
+              "dueOn": "2026-11-08",
+              "completedAt": "2026-11-08T16:30:00+08:00"
+            },
+            {
+              "id": "interaction-review",
+              "title": "核对交互与异常状态",
+              "status": "review",
+              "priority": "P1",
+              "milestone": "可用原型",
+              "dependsOn": [
+                "page-layout"
+              ],
+              "acceptance": "加载、空状态、错误状态都有明确反馈",
+              "startsOn": "2026-11-09",
+              "dueOn": "2026-11-11"
+            }
+          ]
+        }
+      ]
     },
     {
-      "id": "engineering", "title": "接口与数据", "color": "#12a89d",
-      "windows": [{
-        "id": "backend", "title": "后端接口", "owner": "工程支线",
-        "reviewedAt": "2026-11-01T09:00:00Z", "summary": "基础接口完成，正在验证边界。",
-        "tasks": [
-          {"id": "api", "title": "实现查询接口", "status": "done", "priority": "P1", "stage": "local", "milestone": "可用原型", "evidence": "演示：本地接口测试通过"},
-          {"id": "validation", "title": "补齐权限与数据边界验证", "status": "in_progress", "priority": "P1", "milestone": "联调验收", "dependsOn": ["api"], "acceptance": "越权、空数据和失败重试均已验证"}
-        ]
-      }]
+      "id": "engineering",
+      "title": "接口与数据",
+      "color": "#12a89d",
+      "windows": [
+        {
+          "id": "backend",
+          "title": "后端接口",
+          "owner": "工程支线",
+          "reviewedAt": "2026-11-01T09:00:00Z",
+          "summary": "基础接口完成，正在验证边界。",
+          "tasks": [
+            {
+              "id": "api",
+              "title": "实现查询接口",
+              "status": "done",
+              "priority": "P1",
+              "stage": "local",
+              "milestone": "可用原型",
+              "evidence": "演示：本地接口测试通过",
+              "startsOn": "2026-11-05",
+              "dueOn": "2026-11-07",
+              "completedAt": "2026-11-07T17:00:00+08:00"
+            },
+            {
+              "id": "validation",
+              "title": "补齐权限与数据边界验证",
+              "status": "in_progress",
+              "priority": "P1",
+              "milestone": "联调验收",
+              "dependsOn": [
+                "api"
+              ],
+              "acceptance": "越权、空数据和失败重试均已验证",
+              "startsOn": "2026-11-08",
+              "dueOn": "2026-11-12"
+            }
+          ]
+        }
+      ]
     },
     {
-      "id": "release", "title": "联调与交付", "color": "#ef9a42",
-      "windows": [{
-        "id": "qa", "title": "验收与发布", "owner": "交付支线",
-        "reviewedAt": "2026-11-01T09:00:00Z", "summary": "等待接口验证和演示账号后联调。",
-        "tasks": [
-          {"id": "integration", "title": "完成端到端联调", "status": "blocked", "priority": "P0", "milestone": "联调验收", "dependsOn": ["validation", "interaction-review"], "blocker": "等待测试账号", "nextAction": "项目负责人提供演示账号", "acceptance": "从入口到结果的完整操作链路通过"},
-          {"id": "publish", "title": "发布并记录线上验收结果", "status": "todo", "priority": "P2", "milestone": "正式交付", "dependsOn": ["integration"], "stage": "unverified", "acceptance": "发布记录和线上关键路径验证齐全"}
-        ]
-      }]
+      "id": "release",
+      "title": "联调与交付",
+      "color": "#ef9a42",
+      "windows": [
+        {
+          "id": "qa",
+          "title": "验收与发布",
+          "owner": "交付支线",
+          "reviewedAt": "2026-11-01T09:00:00Z",
+          "summary": "等待接口验证和演示账号后联调。",
+          "tasks": [
+            {
+              "id": "integration",
+              "title": "完成端到端联调",
+              "status": "blocked",
+              "priority": "P0",
+              "milestone": "联调验收",
+              "dependsOn": [
+                "validation",
+                "interaction-review"
+              ],
+              "blocker": "等待测试账号",
+              "nextAction": "项目负责人提供演示账号",
+              "acceptance": "从入口到结果的完整操作链路通过",
+              "startsOn": "2026-11-12",
+              "dueOn": "2026-11-15"
+            },
+            {
+              "id": "publish",
+              "title": "发布并记录线上验收结果",
+              "status": "todo",
+              "priority": "P2",
+              "milestone": "正式交付",
+              "dependsOn": [
+                "integration"
+              ],
+              "stage": "unverified",
+              "acceptance": "发布记录和线上关键路径验证齐全"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
