@@ -109,7 +109,7 @@ def prepare_snapshot(data):
     history = data.get('history', {})
     output['history'] = {'startedAt': history.get('startedAt'), 'limit': 200, 'error': bool(history.get('error')), 'events': []}
     for event in history.get('events', [])[:200]:
-        item = {key: clean_text(event.get(key)) for key in ('id', 'kind', 'observedAt', 'title', 'lane', 'window', 'status', 'previousStatus', 'total', 'done', 'startsOn', 'dueOn', 'completedAt')}
+        item = {key: clean_text(event.get(key)) for key in ('id', 'kind', 'observedAt', 'reviewedAt', 'sourceKind', 'title', 'lane', 'window', 'status', 'previousStatus', 'total', 'done', 'startsOn', 'dueOn', 'completedAt')}
         for key, kind in (('taskId', 't'), ('laneId', 'm'), ('windowId', 'w')):
             item[key] = public_id(kind, event[key]) if event.get(key) else None
         output['history']['events'].append(item)

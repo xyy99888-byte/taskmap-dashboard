@@ -66,8 +66,8 @@ function schedule(task){
 }
 function timelineHistory(value){
   const count=n=>Math.max(0,Math.min(2000,Math.trunc(Number(n)||0)));
-  return {startedAt:date(value?.startedAt),limit:200,error:value?.error===true,events:(Array.isArray(value?.events)?value.events:[]).slice(0,200).filter(e=>e&&['baseline','added','removed','status','schedule'].includes(e.kind)&&date(e.observedAt)).map(e=>({
-    id:text(e.id,100),kind:e.kind,observedAt:date(e.observedAt),taskId:text(e.taskId,200),laneId:text(e.laneId,100),windowId:text(e.windowId,100),title:text(e.title,240),lane:text(e.lane,160),window:text(e.window,160),status:statuses.has(e.status)?e.status:null,previousStatus:statuses.has(e.previousStatus)?e.previousStatus:null,total:count(e.total),done:Math.min(count(e.done),count(e.total)),...schedule(e)
+  return {startedAt:date(value?.startedAt),limit:200,error:value?.error===true,events:(Array.isArray(value?.events)?value.events:[]).slice(0,200).filter(e=>e&&['baseline','added','removed','status','schedule','review'].includes(e.kind)&&date(e.observedAt)).map(e=>({
+    id:text(e.id,100),kind:e.kind,observedAt:date(e.observedAt),reviewedAt:date(e.reviewedAt),sourceKind:['update','markdown','project'].includes(e.sourceKind)?e.sourceKind:'project',taskId:text(e.taskId,200),laneId:text(e.laneId,100),windowId:text(e.windowId,100),title:text(e.title,240),lane:text(e.lane,160),window:text(e.window,160),status:statuses.has(e.status)?e.status:null,previousStatus:statuses.has(e.previousStatus)?e.previousStatus:null,total:count(e.total),done:Math.min(count(e.done),count(e.total)),...schedule(e)
   }))};
 }
 

@@ -14,6 +14,25 @@ def data():
 
 
 class TimelineTests(unittest.TestCase):
+    def test_review_dates_persist_without_becoming_completion_dates(self):
+        with tempfile.TemporaryDirectory() as root:
+            d = data(); window = d['lanes'][0]['windows'][0]
+            window['reviewedAt'] = '2026-11-08T09:00:00Z'
+            first = record_history(root, 'one', d)
+            review = first['events'][0]
+            self.assertEqual(review['kind'], 'review')
+            self.assertEqual(review['reviewedAt'], window['reviewedAt'])
+            self.assertEqual(review['observedAt'], d['generatedAt'])
+            self.assertNotIn('completedAt', review)
+            self.assertEqual(record_history(root, 'one', d), first)
+            window['reviewedAt'] = '2026-11-09T09:00:00Z'
+            later = record_history(root, 'one', d)
+            self.assertEqual(len([e for e in later['events'] if e['kind'] == 'review']), 2)
+            d['history'] = later
+            uploaded = prepare_snapshot(d)['history']['events'][0]
+            self.assertEqual(uploaded['reviewedAt'], window['reviewedAt'])
+            self.assertNotEqual(uploaded['windowId'], window['id'])
+
     def test_concurrent_pollers_record_one_baseline(self):
         from concurrent.futures import ThreadPoolExecutor
         with tempfile.TemporaryDirectory() as root:

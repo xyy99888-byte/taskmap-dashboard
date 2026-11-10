@@ -252,6 +252,7 @@ def handler_for(dashboard):
                 return
             files = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"), "/style.css": ("style.css", "text/css"), "/favicon.svg": ("favicon.svg", "image/svg+xml")}
             files['/timeline.js'] = ('timeline.js', 'text/javascript')
+            files['/timeline-model.js'] = ('timeline-model.js', 'text/javascript')
             if path not in files:
                 self.respond(404, "text/plain", b"Not found")
                 return

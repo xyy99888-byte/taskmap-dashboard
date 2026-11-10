@@ -7,6 +7,7 @@
   <link rel="icon" href="/favicon.svg?v=taskmark2" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
   <script src="/app.js" defer></script>
+  <script src="/timeline-model.js" defer></script>
   <script src="/timeline.js" defer></script>
 </head>
 <body>
@@ -25,10 +26,11 @@
     </section>
     <section class="stats" id="stats" aria-label="项目总览"></section>
     <section class="panel timeline-panel" aria-labelledby="timeline-title">
-      <div class="panel-head"><div><p class="eyebrow">PROJECT TIMELINE</p><h2 id="timeline-title">项目时间轴</h2></div><div class="filters" role="group" aria-label="时间轴视图"><button type="button" data-timeline-mode="schedule" aria-pressed="true" class="selected">任务排期</button><button type="button" data-timeline-mode="history" aria-pressed="false">进展历史</button></div></div>
-      <div class="timeline-toolbar"><label>模块 <select id="timeline-lane"><option value="">全部模块</option></select></label><label>显示 <select id="timeline-status"><option value="all">全部任务</option><option value="pending">待完成</option><option value="done">已完成</option></select></label><div id="timeline-range-controls"><button type="button" id="timeline-prev" aria-label="上一段时间">←</button><button type="button" id="timeline-today">今天</button><button type="button" id="timeline-next" aria-label="下一段时间">→</button><label>尺度 <select id="timeline-scale"><option value="day">按天 · 两周</option><option value="week">按周 · 十二周</option></select></label></div></div>
+      <div class="panel-head"><div><p class="eyebrow">PROJECT TIMELINE</p><h2 id="timeline-title">项目时间轴</h2></div><div class="filters" role="group" aria-label="时间轴视图"><button type="button" data-timeline-mode="history" aria-pressed="true" class="selected">进展轨迹</button><button type="button" data-timeline-mode="schedule" aria-pressed="false">计划排期</button></div></div>
+      <div id="timeline-summary" class="timeline-summary"></div>
+      <div class="timeline-toolbar"><label>模块 <select id="timeline-lane"><option value="">全部模块</option></select></label><label id="timeline-status-control" hidden>显示 <select id="timeline-status"><option value="all">全部任务</option><option value="pending">待完成</option><option value="done">已完成</option></select></label><div id="timeline-range-controls"><button type="button" id="timeline-prev" aria-label="上一段时间">←</button><button type="button" id="timeline-today">今天</button><button type="button" id="timeline-next" aria-label="下一段时间">→</button><label>尺度 <select id="timeline-scale"><option value="day">按天 · 两周</option><option value="month">按天 · 一个月</option><option value="week">按周 · 十二周</option></select></label></div></div>
       <p id="timeline-note" class="timeline-note"></p><div id="timeline-content"></div>
-      <p class="chart-footnote">排期来自任务记录的开始与截止日期。历史保存最近 200 条观测，记录看板发现的变化；不代表精确发生时间，未观测到的中间状态无法还原。</p>
+      <p class="chart-footnote">复核节点来自窗口明确保存的复核时间；完成节点来自任务填写的实际完成时间；变化节点是看板发现变化的时间。三者独立展示，不相互推算。自动变化保留最近 200 条。</p>
     </section>
     <section class="overview-grid">
       <article class="panel chart-panel"><div class="panel-head"><div><p class="eyebrow">PROJECT MAP</p><h2>项目模块进度图</h2></div><span class="hint">横轴为已记录任务比例 · 点击色块查看对应任务</span></div><div class="chart-legend" aria-label="图例"><span><i class="legend-dot done"></i>已完成</span><span><i class="legend-dot in_progress"></i>进行中</span><span><i class="legend-dot review"></i>待验收</span><span><i class="legend-dot blocked"></i>阻塞 / 待依赖</span><span><i class="legend-dot todo"></i>其他待办</span></div><div class="module-chart-scroll" tabindex="0" aria-label="模块进度图，小屏幕可左右滑动"><div class="module-chart"><div class="chart-axis"><span>项目模块</span><div class="axis-ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div><span>还需要完成什么</span></div><div id="lanes" class="chart-rows"></div></div></div><p class="chart-footnote">每行色块合计为该模块已记录的任务。没有清单的窗口未计入比例；本地完成、合并和上线的范围见详情。</p></article>

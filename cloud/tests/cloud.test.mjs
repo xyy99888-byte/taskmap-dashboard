@@ -37,6 +37,10 @@ test('schedule and bounded observed history survive cloud normalization without 
   assert.equal(invalid.startsOn,null);assert.equal(invalid.completedAt,null);assert.ok(invalid.scheduleWarning);
   task.startsOn='2026-11-15';assert.ok(snapshot(input).lanes[0].windows[0].tasks[0].scheduleWarning);
   assert.deepEqual(snapshot(data()).history.events,[]);
+  input.history.events=[{id:'review',kind:'review',observedAt:'2026-11-10T03:00:00Z',reviewedAt:'2026-11-08T09:00:00Z',windowId:'work',sourceKind:'update'}];
+  const review=snapshot(input).history.events[0];
+  assert.equal(review.reviewedAt,'2026-11-08T09:00:00.000Z');assert.equal(review.observedAt,'2026-11-10T03:00:00.000Z');
+  assert.equal(review.sourceKind,'update');
 });
 
 before(async()=>{
