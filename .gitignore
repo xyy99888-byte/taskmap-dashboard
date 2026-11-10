@@ -1,0 +1,22 @@
+# Personal configuration, project records and local runtime output
+config.json
+local/
+updates/
+progress.json
+*.sqlite*
+*.db
+.env
+.env.*
+*.log
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+node_modules/
+cloud/dist/
+cloud/.wrangler/
+cloud/wrangler.web.jsonc
+cloud/wrangler.sync.jsonc
+cloud/.dev.vars*
+cloud/.tmp/
+cloud/DEPLOYMENT_STATUS.md

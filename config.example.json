@@ -1,0 +1,8 @@
+{
+  "dataFile": "demo/project.json",
+  "updatesDir": "local/updates",
+  "refreshSeconds": 5,
+  "timezone": "Asia/Shanghai",
+  "codex": {"enabled": false, "home": "~/.codex"},
+  "markdownBoards": {}
+}

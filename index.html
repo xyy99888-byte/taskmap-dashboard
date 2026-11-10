@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>项目进度看板</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="#/overview" aria-label="返回项目总览"><span class="brandmark">P</span><span><span id="project-name">项目进度</span><small>任务总览</small></span></a>
+      <div class="topright"><a id="cloud-home" href="/" hidden>我的项目</a><span id="live" class="live">连接中</span><span id="clock"></span></div>
+    </header>
+    <div class="project-switcher"><label for="project-select">当前项目</label><select id="project-select" aria-label="切换项目"><option value="">正在读取项目…</option></select><span>每个项目独立查看模块、窗口与待办</span></div>
+    <div id="warnings" class="warnings" role="status" hidden></div>
+    <section id="sync-coverage" class="sync-coverage" aria-label="进度数据来源"></section>
+    <div id="overview-view">
+    <section class="hero">
+      <div><p class="eyebrow">PROJECT CONTROL / 总任务</p><h1>从每条支线，看清整个项目</h1><p id="scope" class="muted"></p></div>
+      <div class="hero-note"><span class="pulse"></span><span id="refresh-rate">本机数据 · 自动刷新</span><br><small id="view-location">仅在这台电脑上查看</small></div>
+    </section>
+    <section class="stats" id="stats" aria-label="项目总览"></section>
+    <section class="overview-grid">
+      <article class="panel chart-panel"><div class="panel-head"><div><p class="eyebrow">PROJECT MAP</p><h2>项目模块进度图</h2></div><span class="hint">横轴为已记录任务比例 · 点击色块查看对应任务</span></div><div class="chart-legend" aria-label="图例"><span><i class="legend-dot done"></i>已完成</span><span><i class="legend-dot in_progress"></i>进行中</span><span><i class="legend-dot review"></i>待验收</span><span><i class="legend-dot blocked"></i>阻塞 / 待依赖</span><span><i class="legend-dot todo"></i>其他待办</span></div><div class="module-chart-scroll" tabindex="0" aria-label="模块进度图，小屏幕可左右滑动"><div class="module-chart"><div class="chart-axis"><span>项目模块</span><div class="axis-ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div><span>还需要完成什么</span></div><div id="lanes" class="chart-rows"></div></div></div><p class="chart-footnote">每行色块合计为该模块已记录的任务。没有清单的窗口未计入比例；本地完成、合并和上线的范围见详情。</p></article>
+      <article class="panel attention-panel"><div class="panel-head"><div><p class="eyebrow">NEXT ACTIONS</p><h2>需要推进的事项</h2></div></div><ol id="next" class="next-list"></ol></article>
+    </section>
+    <section id="milestone-panel" class="panel milestone-panel" hidden><div class="panel-head"><div><p class="eyebrow">MILESTONES</p><h2>阶段交付</h2></div></div><div id="milestones" class="milestones"></div></section>
+    <section class="panel windows-panel">
+      <div class="panel-head"><div><p class="eyebrow">WORKSTREAMS</p><h2>支线任务明细</h2></div><div class="filters"><button class="selected" data-filter="all">全部</button><button data-filter="active">进行中</button><button data-filter="blocked">有阻塞</button><button data-filter="review">待验收 / 复核</button><button data-filter="todo">有待办</button></div></div>
+      <div class="table-wrap"><table><thead><tr><th>支线 / 工作窗口</th><th>清单完成度</th><th>下一步</th><th>窗口动态</th><th>依据更新</th></tr></thead><tbody id="rows"></tbody></table></div>
+    </section>
+    </div>
+    <section id="detail-view" hidden aria-labelledby="detail-title">
+      <nav id="breadcrumbs" class="breadcrumbs" aria-label="当前位置"></nav>
+      <div class="detail-layout">
+        <aside class="module-sidebar"><p class="eyebrow">项目模块</p><nav id="module-nav" aria-label="切换模块"></nav></aside>
+        <div class="module-main">
+          <div class="module-heading"><div><p class="eyebrow">MODULE DETAILS / 模块详情</p><h1 id="detail-title" tabindex="-1"></h1><p id="detail-description" class="muted"></p></div><a class="back-link" href="#/overview">← 返回总览</a></div>
+          <div id="detail-stats" class="detail-stats"></div>
+          <section class="panel module-windows"><div class="panel-head"><h2>这个模块包含哪些窗口</h2><a id="all-windows-link" class="text-link" href="#/tasks">查看全部窗口</a></div><div id="window-cards" class="window-cards"></div></section>
+          <section class="panel module-tasks"><div class="panel-head"><div><h2>具体任务与成果</h2><p id="task-results" class="result-count" role="status"></p></div><label class="task-search"><span>搜索本模块</span><input id="detail-search" type="search" placeholder="任务、成果或依据…" autocomplete="off"></label></div><div id="task-filters" class="filters task-filters" aria-label="按任务状态筛选"></div><div id="module-content"></div></section>
+        </div>
+      </div>
+    </section>
+    <footer><span>完成度按已记录任务计数；“本地完成、已合并、已上线”在任务详情中分别标注。</span><span id="source"></span></footer>
+  </main>
+</body>
+</html>

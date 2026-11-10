@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>登录 · 项目进度看板</title><link rel="stylesheet" href="/portal.css"><script src="/auth.js" defer></script></head>
+<body><main class="auth-main"><header><a class="brand" href="/">P <span>项目进度看板</span></a></header>
+<section class="hero"><p>YOUR PROJECTS</p><h1 id="auth-title">登录你的看板</h1><span id="auth-description">查看自己的项目、窗口待办与最新进度。</span></section>
+<section class="panel"><p id="auth-notice" role="status" hidden></p>
+<form id="auth-form" class="auth-form">
+<label id="invite-label" hidden>邀请链接或邀请码<input id="invite-input" autocomplete="off" spellcheck="false" maxlength="2048" placeholder="粘贴收到的完整邀请链接或邀请码"></label>
+<label id="username-label">用户名<input id="username" name="username" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,31}" placeholder="英文字母、数字、下划线或短横线" required></label>
+<label id="recovery-label" hidden>恢复码<input id="recovery-input" autocomplete="off" spellcheck="false" maxlength="64"></label>
+<label id="current-label" hidden>当前密码<input id="current-password" type="password" autocomplete="current-password" minlength="14" maxlength="128"></label>
+<label><span id="password-label">密码</span><input id="password" name="password" type="password" autocomplete="current-password" minlength="14" maxlength="128" required></label>
+<label id="confirm-label" hidden>再次输入密码<input id="confirm-password" type="password" autocomplete="new-password" minlength="14" maxlength="128"></label>
+<p class="hint" id="password-policy">密码为 14–128 个字符，包含字母、数字、符号中的至少两类。区分大小写；大小写字母属于同一类，空格不计作符号。</p>
+<button id="submit" type="submit">登录</button></form>
+<div id="auth-links" class="actions"><p>还没有账号？<a href="/login?mode=register">创建账号</a></p><a href="/login?mode=recover">忘记密码，用恢复码重设</a><p class="hint">创建账号需要邀请链接或邀请码。</p></div>
+<section id="recovery-result" hidden><h2>请保存你的恢复码</h2><p class="hint">忘记密码时，它是恢复账号的凭据。请保存在密码管理器等私人位置。此码仅显示这一次；重新恢复账号后，旧码失效。</p><code id="recovery-output"></code><button id="save-recovery" type="button">下载恢复码</button><p><label><input id="saved" type="checkbox"> 我已将恢复码保存到安全位置</label></p><button id="continue" disabled>进入我的项目</button></section>
+</section><footer>账号空间独立 · 无需绑定付款方式</footer></main></body></html>

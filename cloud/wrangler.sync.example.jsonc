@@ -1,0 +1,9 @@
+{
+  "name": "project-progress-sync",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "triggers": {"crons": ["17 3 * * *"]},
+  "vars": {"SERVICE_MODE": "sync"},
+  "d1_databases": [{"binding": "DB", "database_name": "project-progress", "database_id": "REPLACE_WITH_DATABASE_ID", "migrations_dir": "migrations"}]
+}
