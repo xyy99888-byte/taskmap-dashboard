@@ -12,7 +12,7 @@ const DB=await runtime.getD1Database('DB');
 const sql=await readFile(path.join(root,'migrations','0001_cloud.sql'),'utf8');
 for(const statement of sql.split(';').map(x=>x.trim()).filter(Boolean))await DB.prepare(statement).run();
 const user={id:'preview-alice',email:'演示账号（本地测试，无公网登录）'};
-const files={'/':['index.html','text/html'],'/portal.js':['portal.js','text/javascript'],'/portal.css':['portal.css','text/css'],'/dashboard/':['dashboard/index.html','text/html'],'/app.js':['app.js','text/javascript'],'/style.css':['style.css','text/css']};
+const files={'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html'],'/portal.js':['portal.js','text/javascript'],'/portal.css':['portal.css','text/css'],'/dashboard/':['dashboard/index.html','text/html'],'/app.js':['app.js','text/javascript'],'/style.css':['style.css','text/css']};
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url,'http://127.0.0.1:8770');

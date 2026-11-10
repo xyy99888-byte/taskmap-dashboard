@@ -91,7 +91,7 @@ Windows 也可以双击 `start.cmd`。打开 <http://127.0.0.1:8765/>。停止�
 
 本目录的代码、虚构示例、文档和测试可以组成一个独立仓库。个人项目数据应继续放在 `local/`，不要上传实际任务快照、聊天记录、数据库或凭证。
 
-推荐纳入的文件：`server.py`、`sync_client.py`、`app.js`、`index.html`、`style.css`、`config.example.json`、`demo/`、`start.cmd`、`README.md`、`UPDATE_PROTOCOL.md`、`DESIGN_NOTES.md`、`tests/`、`.gitignore`，以及 `cloud/` 中的源码、测试、示例配置、文档、`package.json` 和 `package-lock.json`。不要包含依赖目录、构建产物、本地测试文件或个人配置。
+推荐纳入的文件：`server.py`、`sync_client.py`、`app.js`、`index.html`、`style.css`、`favicon.svg`、`config.example.json`、`demo/`、`start.cmd`、`README.md`、`UPDATE_PROTOCOL.md`、`DESIGN_NOTES.md`、`tests/`、`.gitignore`，以及 `cloud/` 中的源码、测试、示例配置、文档、`package.json` 和 `package-lock.json`。不要包含依赖目录、构建产物、本地测试文件或个人配置。
 
 别人下载代码后可在自己的电脑上运行，配置自己的项目数据。**上传 GitHub 不等于在线托管看板**：GitHub Pages 不能运行这里的 Python 服务，也不能读取本机文件。本地服务固定监听 `127.0.0.1`；现已另有带登录、独立用户空间和本机同步的云端实现，部署方法见 [cloud/README.md](cloud/README.md)。云端实现部署后用一次性邀请创建独立账号；无需 Cloudflare Access 或 Zero Trust。
 

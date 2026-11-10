@@ -189,7 +189,7 @@ export default {
       const path=new URL(request.url).pathname;
       if(env.AUTH_MODE==='password'){
         if(path.startsWith('/api/auth/'))return secured(await authApi(request,env));
-        if(['/login','/login/','/auth.js','/portal.css'].includes(path)&&['GET','HEAD'].includes(request.method)){
+        if(['/login','/login/','/auth.js','/portal.css','/favicon.svg'].includes(path)&&['GET','HEAD'].includes(request.method)){
           return secured(await env.ASSETS.fetch(request));
         }
       }

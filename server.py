@@ -227,7 +227,7 @@ def handler_for(dashboard):
                     print(f"Data read error: {type(exc).__name__}", flush=True)
                     self.respond(503, "application/json; charset=utf-8", json.dumps({"error": "项目数据格式有误或暂时不可读。请检查配置及 JSON 文件。"}, ensure_ascii=False).encode("utf-8"))
                 return
-            files = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"), "/style.css": ("style.css", "text/css")}
+            files = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"), "/style.css": ("style.css", "text/css"), "/favicon.svg": ("favicon.svg", "image/svg+xml")}
             if path not in files:
                 self.respond(404, "text/plain", b"Not found")
                 return
