@@ -43,6 +43,11 @@ function checkTime(value) {
 function meter(value, color, label) {
   return `<progress max="100" value="${Number(value) || 0}" data-color="${safe(color)}" aria-label="${safe(label)}"></progress>`;
 }
+function progressRing(done, total) {
+  const share = total > 0 ? Math.max(0, Math.min(100, done / total * 100)) : 0;
+  const complete = total > 0 && done === total;
+  return `<svg class="progress-ring" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><circle class="ring-track" cx="32" cy="32" r="24"/>${share > 0 ? `<circle class="ring-value" cx="32" cy="32" r="24" pathLength="100" stroke-dasharray="${share} 100" transform="rotate(-90 32 32)"/>` : ''}${complete ? '<path class="ring-check" d="m22 32 7 7 14-15"/>' : ''}</svg>`;
+}
 function taskDetails(task, full=false) {
   const rows = [
     task.stage && ['交付阶段', stages[task.stage] || task.stage],
@@ -95,7 +100,7 @@ function render(data) {
     ['项目支线',data.lanes.length,`${windows.length} 个已登记窗口`,pageHash(null)],
     ['当前阻塞',blockedTasks,'含尚未满足的任务依赖',pageHash(null,{status:'blocked'})],
     ['正在工作的窗口',active,`${reviews} 个窗口的进度需要复核`,pageHash(null,{activity:'active'})]
-  ].map(([name,value,note,link])=>`<a class="stat" href="${safe(link)}"><div class="label">${safe(name)} <span aria-hidden="true">↗</span></div><div class="num">${safe(value)}</div><div class="sub">${safe(note)}</div></a>`).join('');
+  ].map(([name,value,note,link],i)=>`<a class="stat${i===0?' stat-progress':''}" href="${safe(link)}"><div class="label">${safe(name)} <span aria-hidden="true">↗</span></div><div class="num">${i===0?progressRing(done,tasks.length):''}${safe(value)}</div><div class="sub">${safe(note)}</div></a>`).join('');
   $('lanes').innerHTML = data.lanes.map(lane=>{
     const items=lane.windows.flatMap(w=>w.tasks).filter(t=>t.status!=='cancelled');
     const d=items.filter(t=>t.done).length, p=items.length?Math.round(d/items.length*100):0;

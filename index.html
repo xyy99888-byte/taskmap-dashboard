@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>项目进度看板</title>
-  <link rel="icon" href="/favicon.svg?v=taskmap1" type="image/svg+xml">
+  <link rel="icon" href="/favicon.svg?v=taskmark2" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
   <script src="/app.js" defer></script>
 </head>
 <body>
   <main class="shell">
     <header class="topbar">
-      <a class="brand" href="#/overview" aria-label="返回项目总览"><span class="brandmark">P</span><span><span id="project-name">项目进度</span><small>任务总览</small></span></a>
+      <a class="brand" href="#/overview" aria-label="返回项目总览"><img class="brandmark" src="/favicon.svg?v=taskmark2" width="34" height="34" alt="Taskmap"><span><span id="project-name">项目进度</span><small>任务总览</small></span></a>
       <div class="topright"><a id="cloud-home" href="/" hidden>我的项目</a><span id="live" class="live">连接中</span><span id="clock"></span></div>
     </header>
     <div class="project-switcher"><label for="project-select">当前项目</label><select id="project-select" aria-label="切换项目"><option value="">正在读取项目…</option></select><span>每个项目独立查看模块、窗口与待办</span></div>
