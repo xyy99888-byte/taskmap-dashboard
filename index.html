@@ -6,25 +6,51 @@
   <title>项目进度看板</title>
   <link rel="icon" href="/favicon.svg?v=taskmark2" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/navigation.css">
+  <script src="/navigation-model.js" defer></script>
   <script src="/app.js" defer></script>
   <script src="/timeline-model.js" defer></script>
   <script src="/timeline.js" defer></script>
+  <script src="/navigation.js" defer></script>
 </head>
-<body>
-  <main class="shell">
-    <header class="topbar">
-      <a class="brand" href="#/overview" aria-label="返回项目总览"><img class="brandmark" src="/favicon.svg?v=taskmark2" width="34" height="34" alt="Taskmap"><span><span id="project-name">项目进度</span><small>任务总览</small></span></a>
-      <div class="topright"><a id="cloud-home" href="/" hidden>我的项目</a><span id="live" class="live">连接中</span><span id="clock"></span></div>
+<body class="has-sidebar">
+  <a class="skip-link" href="#main-content">跳到内容</a>
+  <button id="nav-backdrop" class="nav-backdrop" type="button" aria-label="关闭导航" hidden></button>
+  <aside id="app-sidebar" class="app-sidebar" aria-label="项目导航">
+    <div class="sidebar-brand"><a href="#/overview"><img src="/favicon.svg?v=taskmark2" width="32" height="32" alt=""><strong>Taskmap</strong></a><button id="nav-close" type="button" aria-label="关闭导航">×</button></div>
+    <div class="sidebar-project"><label for="project-select">当前项目</label><select id="project-select" aria-label="切换项目" disabled><option value="">正在读取项目…</option></select></div>
+    <p class="sidebar-label">项目空间</p>
+    <nav class="primary-nav" aria-label="主要页面">
+      <a href="#/overview" data-page="overview"><span aria-hidden="true">◫</span>项目总览</a>
+      <a href="#/timeline" data-page="timeline"><span aria-hidden="true">◷</span>项目时间轴</a>
+      <a href="#/tasks" data-page="tasks"><span aria-hidden="true">☷</span>全部任务 <small id="nav-task-count"></small></a>
+      <a href="#/windows" data-page="windows"><span aria-hidden="true">▤</span>工作窗口</a>
+    </nav>
+    <p class="sidebar-label">项目模块</p><nav id="module-nav" class="sidebar-modules" aria-label="项目模块"></nav>
+    <div class="sidebar-bottom"><a id="cloud-home" href="/" hidden>← 我的项目</a><span>进度来自已保存记录</span></div>
+  </aside>
+  <main class="shell app-main" id="main-content" tabindex="-1">
+    <header class="topbar app-topbar">
+      <div class="nav-location"><button id="nav-toggle" type="button" aria-label="打开导航" aria-controls="app-sidebar" aria-expanded="false">☰</button><button id="nav-back" type="button" disabled aria-label="返回上一页">← 返回</button><nav id="nav-breadcrumbs" aria-label="页面位置"><span id="project-name">项目进度</span></nav></div>
+      <div class="topright"><span id="live" class="live" role="status">连接中</span><span id="clock"></span><button id="refresh-now" type="button">刷新</button></div>
     </header>
-    <div class="project-switcher"><label for="project-select">当前项目</label><select id="project-select" aria-label="切换项目"><option value="">正在读取项目…</option></select><span>每个项目独立查看模块、窗口与待办</span></div>
+    <div id="load-state" class="load-state" role="status">正在读取项目…</div>
+    <div class="load-actions" id="load-actions" hidden><button id="retry-load" type="button">重新加载</button><a id="signin-link" hidden>重新登录</a></div>
     <div id="warnings" class="warnings" role="status" hidden></div>
-    <section id="sync-coverage" class="sync-coverage" aria-label="进度数据来源"></section>
-    <div id="overview-view">
+    <details class="source-disclosure"><summary>数据来源与同步说明</summary><section id="sync-coverage" class="sync-coverage" aria-label="进度数据来源"></section></details>
+    <div id="overview-view" hidden>
     <section class="hero">
-      <div><p class="eyebrow">PROJECT CONTROL / 总任务</p><h1>从每条支线，看清整个项目</h1><p id="scope" class="muted"></p></div>
+      <div><p class="eyebrow">PROJECT CONTROL / 总任务</p><h1 tabindex="-1">项目总览</h1><p id="scope" class="muted"></p></div>
       <div class="hero-note"><span class="pulse"></span><span id="refresh-rate">本机数据 · 自动刷新</span><br><small id="view-location">仅在这台电脑上查看</small></div>
     </section>
     <section class="stats" id="stats" aria-label="项目总览"></section>
+    <section class="overview-grid">
+      <article class="panel chart-panel"><div class="panel-head"><div><p class="eyebrow">PROJECT MAP</p><h2>项目模块进度图</h2></div><a class="section-link" href="#/timeline">查看时间轴 →</a></div><div class="chart-legend" aria-label="图例"><span><i class="legend-dot done"></i>已完成</span><span><i class="legend-dot in_progress"></i>进行中</span><span><i class="legend-dot review"></i>待验收</span><span><i class="legend-dot blocked"></i>阻塞 / 待依赖</span><span><i class="legend-dot todo"></i>其他待办</span></div><div class="module-chart-scroll" tabindex="0" aria-label="模块进度图，小屏幕可左右滑动"><div class="module-chart"><div class="chart-axis"><span>项目模块</span><div class="axis-ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div><span>还需要完成什么</span></div><div id="lanes" class="chart-rows"></div></div></div><p class="chart-footnote">每行色块合计为该模块已记录的任务。没有清单的窗口未计入比例；本地完成、合并和上线的范围见详情。</p></article>
+      <article class="panel attention-panel"><div class="panel-head"><div><p class="eyebrow">NEXT ACTIONS</p><h2>需要推进的事项</h2></div></div><ol id="next" class="next-list"></ol></article>
+    </section>
+    <section id="milestone-panel" class="panel milestone-panel" hidden><div class="panel-head"><div><p class="eyebrow">MILESTONES</p><h2>阶段交付</h2></div></div><div id="milestones" class="milestones"></div></section>
+    </div>
+    <section id="timeline-view" hidden><div class="page-heading"><p class="eyebrow">PROJECT TIMELINE</p><h1 tabindex="-1">项目时间轴</h1><p>沿日期查看各模块的进展，再安排下一步。</p></div>
     <section class="panel timeline-panel" aria-labelledby="timeline-title">
       <div class="panel-head"><div><p class="eyebrow">PROJECT TIMELINE</p><h2 id="timeline-title">项目时间轴</h2></div><div class="filters" role="group" aria-label="时间轴视图"><button type="button" data-timeline-mode="history" aria-pressed="true" class="selected">进展轨迹</button><button type="button" data-timeline-mode="schedule" aria-pressed="false">计划排期</button></div></div>
       <div id="timeline-summary" class="timeline-summary"></div>
@@ -32,22 +58,18 @@
       <p id="timeline-note" class="timeline-note"></p><div id="timeline-content"></div>
       <p class="chart-footnote">复核节点来自窗口明确保存的复核时间；完成节点来自任务填写的实际完成时间；变化节点是看板发现变化的时间。三者独立展示，不相互推算。自动变化保留最近 200 条。</p>
     </section>
-    <section class="overview-grid">
-      <article class="panel chart-panel"><div class="panel-head"><div><p class="eyebrow">PROJECT MAP</p><h2>项目模块进度图</h2></div><span class="hint">横轴为已记录任务比例 · 点击色块查看对应任务</span></div><div class="chart-legend" aria-label="图例"><span><i class="legend-dot done"></i>已完成</span><span><i class="legend-dot in_progress"></i>进行中</span><span><i class="legend-dot review"></i>待验收</span><span><i class="legend-dot blocked"></i>阻塞 / 待依赖</span><span><i class="legend-dot todo"></i>其他待办</span></div><div class="module-chart-scroll" tabindex="0" aria-label="模块进度图，小屏幕可左右滑动"><div class="module-chart"><div class="chart-axis"><span>项目模块</span><div class="axis-ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div><span>还需要完成什么</span></div><div id="lanes" class="chart-rows"></div></div></div><p class="chart-footnote">每行色块合计为该模块已记录的任务。没有清单的窗口未计入比例；本地完成、合并和上线的范围见详情。</p></article>
-      <article class="panel attention-panel"><div class="panel-head"><div><p class="eyebrow">NEXT ACTIONS</p><h2>需要推进的事项</h2></div></div><ol id="next" class="next-list"></ol></article>
     </section>
-    <section id="milestone-panel" class="panel milestone-panel" hidden><div class="panel-head"><div><p class="eyebrow">MILESTONES</p><h2>阶段交付</h2></div></div><div id="milestones" class="milestones"></div></section>
+    <section id="windows-view" hidden><div class="page-heading"><p class="eyebrow">WORKSTREAMS</p><h1 tabindex="-1">工作窗口</h1><p>查看支线窗口的任务清单、当前动态与待办。</p></div>
     <section class="panel windows-panel">
       <div class="panel-head"><div><p class="eyebrow">WORKSTREAMS</p><h2>支线任务明细</h2></div><div class="filters"><button class="selected" data-filter="all">全部</button><button data-filter="active">进行中</button><button data-filter="blocked">有阻塞</button><button data-filter="review">待验收 / 复核</button><button data-filter="todo">有待办</button></div></div>
       <div class="table-wrap"><table><thead><tr><th>支线 / 工作窗口</th><th>清单完成度</th><th>下一步</th><th>窗口动态</th><th>依据更新</th></tr></thead><tbody id="rows"></tbody></table></div>
     </section>
-    </div>
+    </section>
     <section id="detail-view" hidden aria-labelledby="detail-title">
       <nav id="breadcrumbs" class="breadcrumbs" aria-label="当前位置"></nav>
       <div class="detail-layout">
-        <aside class="module-sidebar"><p class="eyebrow">项目模块</p><nav id="module-nav" aria-label="切换模块"></nav></aside>
         <div class="module-main">
-          <div class="module-heading"><div><p class="eyebrow">MODULE DETAILS / 模块详情</p><h1 id="detail-title" tabindex="-1"></h1><p id="detail-description" class="muted"></p></div><a class="back-link" href="#/overview">← 返回总览</a></div>
+          <div class="module-heading"><div><p class="eyebrow">MODULE DETAILS / 模块详情</p><h1 id="detail-title" tabindex="-1"></h1><p id="detail-description" class="muted"></p></div><a class="back-link" id="parent-link" href="#/overview">返回上一级 ↑</a></div>
           <div id="detail-stats" class="detail-stats"></div>
           <section class="panel module-windows"><div class="panel-head"><h2>这个模块包含哪些窗口</h2><a id="all-windows-link" class="text-link" href="#/tasks">查看全部窗口</a></div><div id="window-cards" class="window-cards"></div></section>
           <section class="panel module-tasks"><div class="panel-head"><div><h2>具体任务与成果</h2><p id="task-results" class="result-count" role="status"></p></div><label class="task-search"><span>搜索本模块</span><input id="detail-search" type="search" placeholder="任务、成果或依据…" autocomplete="off"></label></div><div id="task-filters" class="filters task-filters" aria-label="按任务状态筛选"></div><div id="module-content"></div></section>

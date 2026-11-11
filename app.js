@@ -15,14 +15,7 @@ function pageHash(laneId, options={}) {
   Object.entries(options).forEach(([key,value])=>{if(value!==undefined&&value!==null&&value!=='')params.set(key,value)});
   return (laneId ? '#/module/'+encodeURIComponent(laneId) : '#/tasks')+(params.size?'?'+params.toString():'');
 }
-function route() {
-  const [path, query='']=(location.hash.slice(1)||'/overview').split('?');
-  const params=new URLSearchParams(query);
-  if(path==='/overview')return {overview:true,params};
-  if(path==='/tasks')return {overview:false,laneId:null,params};
-  try {if(path.startsWith('/module/'))return {overview:false,laneId:decodeURIComponent(path.slice(8)),params};} catch {}
-  return {overview:false,invalid:true,params};
-}
+function route() { return TaskmapRoutes.parse(location.hash); }
 function taskLink(taskId) {
   const owner=windowsOf(current).find(w=>w.tasks.some(t=>t.id===taskId));
   return owner ? pageHash(owner.laneId,{window:owner.id,task:taskId}) : null;
@@ -70,6 +63,8 @@ function taskDetails(task, full=false) {
 function render(data) {
   current = data;
   const windows = windowsOf(data);
+  if(route().page==='windows'){const selected=route().params.get('filter')||'all';filter=['all','active','blocked','review','todo'].includes(selected)?selected:'all';}
+  document.querySelectorAll('[data-filter]').forEach(b=>{const selected=b.dataset.filter===filter;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected));});
   const tasks = windows.flatMap(w=>w.tasks).filter(t=>t.status!=='cancelled');
   const done = tasks.filter(t=>t.done).length;
   const unknown = windows.filter(w=>!w.taskCount).length;
@@ -98,14 +93,14 @@ function render(data) {
   const sources={update:0,markdown:0,project:0};
   windows.forEach(w=>sources[w.sourceKind]=(sources[w.sourceKind]||0)+1);
   const reviewed=windows.map(w=>w.reviewedAt).filter(value=>Number.isFinite(Date.parse(value))).sort((a,b)=>Date.parse(b)-Date.parse(a))[0];
-  $('sync-coverage').innerHTML=`<div><strong>${sources.project?'部分任务进度仍是快照':'任务进度来自已保存的记录'}</strong><span>${sources.update} 个窗口进度文件 · ${sources.markdown} 个任务看板 · ${sources.project} 个进度快照</span></div><p>文件写入新进度后，通常在下一轮检查显示；聊天中有新动作不会自动改变完成度。<span>最近一次任务复核：${fmt(reviewed)}（仅代表最近更新的记录）。</span></p>`;
-  $('stats').innerHTML = [
+  setMarkup('sync-coverage',`<div><strong>${sources.project?'部分任务进度仍是快照':'任务进度来自已保存的记录'}</strong><span>${sources.update} 个窗口进度文件 · ${sources.markdown} 个任务看板 · ${sources.project} 个进度快照</span></div><p>文件写入新进度后，通常在下一轮检查显示；聊天中有新动作不会自动改变完成度。<span>最近一次任务复核：${fmt(reviewed)}（仅代表最近更新的记录）。</span></p>`);
+  setMarkup('stats',[
     ['已记录任务完成度',tasks.length ? Math.round(done/tasks.length*100)+'%' : '—',`${done} / ${tasks.length} 项 · ${unknown} 个窗口尚无清单`,pageHash(null,{status:'done'})],
     ['项目支线',data.lanes.length,`${windows.length} 个已登记窗口`,pageHash(null)],
     ['当前阻塞',blockedTasks,'含尚未满足的任务依赖',pageHash(null,{status:'blocked'})],
-    ['正在工作的窗口',active,`${reviews} 个窗口的进度需要复核`,pageHash(null,{activity:'active'})]
-  ].map(([name,value,note,link],i)=>`<a class="stat${i===0?' stat-progress':''}" href="${safe(link)}"><div class="label">${safe(name)} <span aria-hidden="true">↗</span></div><div class="num">${i===0?progressRing(done,tasks.length):''}${safe(value)}</div><div class="sub">${safe(note)}</div></a>`).join('');
-  $('lanes').innerHTML = data.lanes.map(lane=>{
+    ['正在工作的窗口',active,`${reviews} 个窗口的进度需要复核`,'#/windows?filter=active']
+  ].map(([name,value,note,link],i)=>`<a class="stat${i===0?' stat-progress':''}" href="${safe(link)}"><div class="label">${safe(name)} <span aria-hidden="true">↗</span></div><div class="num">${i===0?progressRing(done,tasks.length):''}${safe(value)}</div><div class="sub">${safe(note)}</div></a>`).join(''));
+  setMarkup('lanes',data.lanes.map(lane=>{
     const items=lane.windows.flatMap(w=>w.tasks).filter(t=>t.status!=='cancelled');
     const d=items.filter(t=>t.done).length, p=items.length?Math.round(d/items.length*100):0;
     const incomplete=items.filter(t=>!t.done);
@@ -118,27 +113,29 @@ function render(data) {
     const activeWindows=lane.windows.filter(w=>w.activity==='进行中'||w.tasks.some(t=>t.status==='in_progress'));
     const activeTodos=activeWindows.map(w=>`<section class="busy-window"><div class="busy-heading"><a href="${safe(pageHash(lane.id,{window:w.id}))}"><span class="busy-dot"></span>${safe(w.title)} →</a><small>${w.activity==='进行中'?'窗口正在工作':'有进行中的任务'} · 待办 ${pending(w).length} 项</small></div>${w.needsReview?'<p class="busy-stale">窗口有新动态，以下是最近记录的待办，等待窗口更新。</p>':''}<ul>${pending(w).map(t=>`<li><a href="${safe(pageHash(lane.id,{window:w.id,task:t.id}))}"><span class="busy-task-state">${stateNames[t.status]}</span><span>${safe(t.title)}</span><span aria-hidden="true">↗</span></a></li>`).join('')||'<li class="busy-empty">当前没有登记待办；窗口仍在工作，不能据此认定已全部完成。</li>'}</ul></section>`).join('');
     return `<div class="chart-row"><a class="chart-module lane-entry" href="${safe(pageHash(lane.id))}"><b>${safe(lane.title)} <span aria-hidden="true">→</span></b><small>${lane.windows.length} 个窗口${unknown?' · '+unknown+' 个待梳理':''}</small></a><div class="chart-plot"><div class="plot-caption"><strong>${items.length?'已完成 '+p+'%':'待梳理'}</strong><small>${items.length?d+' / '+items.length+' 项完成':'尚未登记具体任务'}${lane.windows.some(w=>w.needsReview)?' · 待复核':''}</small></div><div class="chart-track ${items.length?'':'untracked'}">${segments||'<span class="untracked-label">暂无可计算的任务清单</span>'}</div></div><a class="chart-remaining" href="${safe(pageHash(lane.id,{status:items.length?'pending':''}))}"><strong>${items.length?'还剩 '+incomplete.length+' 项':'进入模块梳理'} <span aria-hidden="true">→</span></strong><span title="${safe(remaining)}">${safe(remaining|| (items.length?'已记录事项均已完成':'查看已有窗口与记录'))}</span></a>${activeTodos?`<div class="busy-windows">${activeTodos}</div>`:''}</div>`;
-  }).join('');
+  }).join(''));
   const next=windows.flatMap(w=>pending(w).map(t=>({...t,window:w.title,href:pageHash(w.laneId,{window:w.id,task:t.id})})))
     .sort((a,b)=>a.priority.localeCompare(b.priority) || Number(blocked(b))-Number(blocked(a))).slice(0,6);
-  $('next').innerHTML = next.map(t=>`<li><a class="next-entry" href="${safe(t.href)}"><i class="dot"></i><span><strong>${safe(t.window)} · ${safe(t.priority)} · ${stateNames[t.status]}</strong>${safe(t.title)}${t.blocker?`<small class="blocker-note">${safe(t.blocker)}</small>`:''}</span><span class="entry-arrow" aria-hidden="true">→</span></a></li>`).join('') || '<li>目前没有已记录的待办。</li>';
+  setMarkup('next',next.map(t=>`<li><a class="next-entry" href="${safe(t.href)}"><i class="dot"></i><span><strong>${safe(t.window)} · ${safe(t.priority)} · ${stateNames[t.status]}</strong>${safe(t.title)}${t.blocker?`<small class="blocker-note">${safe(t.blocker)}</small>`:''}</span><span class="entry-arrow" aria-hidden="true">→</span></a></li>`).join('') || '<li>目前没有已记录的待办。</li>');
   const milestones = new Map();
   tasks.filter(t=>t.milestone).forEach(t=>{if(!milestones.has(t.milestone))milestones.set(t.milestone,[]);milestones.get(t.milestone).push(t)});
   $('milestone-panel').hidden = !milestones.size;
-  $('milestones').innerHTML = [...milestones].map(([name,items],i)=>{
+  setMarkup('milestones',[...milestones].map(([name,items],i)=>{
     const d=items.filter(t=>t.done).length;
     return `<a class="milestone" href="${safe(pageHash(null,{milestone:name}))}"><span class="milestone-number">${String(i+1).padStart(2,'0')}</span><div><b>${safe(name)} →</b><p>${d}/${items.length} 项完成${items.some(blocked)?' · 等待依赖':''}</p>${meter(Math.round(d/items.length*100),'#5b72e8',name)}</div></a>`;
-  }).join('');
+  }).join(''));
   const visible=windows.filter(w=>filter==='all'||filter==='active'&&(w.activity==='进行中'||w.tasks.some(t=>t.status==='in_progress'))||filter==='blocked'&&w.tasks.some(blocked)||filter==='review'&&(w.needsReview||w.tasks.some(t=>t.status==='review'))||filter==='todo'&&pending(w).length);
-  $('rows').innerHTML = visible.map(w=>{
+  setMarkup('rows',visible.map(w=>{
     const next=pending(w).sort((a,b)=>a.priority.localeCompare(b.priority)).slice(0,2);
     const isOpen=expanded.has(w.id);
     const progress=w.percent===null?'<span class="unknown">待梳理</span>':`<div class="mini">${meter(w.percent,w.color,w.title+'清单完成度')}<strong>${w.percent}%</strong></div><div class="lane-sub">${w.doneCount} / ${w.taskCount} 项</div>`;
     return `<tr><td><a class="lane-tag" data-color="${safe(w.color)}" href="${safe(pageHash(w.laneId))}">${safe(w.lane)}</a><a class="window-title window-link" href="${safe(pageHash(w.laneId,{window:w.id}))}">${safe(w.title)} →</a><span class="window-summary">${safe(w.summary)}</span><button class="detail-button" data-window="${safe(w.id)}" aria-expanded="${isOpen}" aria-controls="detail-${safe(w.id)}">${isOpen?'收起详情':'快速查看清单'} ${isOpen?'−':'+'}</button></td><td>${progress}</td><td><div class="todo">${next.length?next.map(t=>`<div>${safe(t.title)}${blocked(t)?'<span class="review">等待依赖或外部条件</span>':''}</div>`).join(''):`<span class="unknown">${w.taskCount?'清单中暂无待办':'尚未登记任务'}</span>`}</div></td><td><span class="status ${w.activity==='进行中'?'active':''}">${safe(w.activity)}</span>${w.needsReview?'<span class="review">● 进度待复核</span>':''}</td><td>${fmt(w.reviewedAt)}<span class="window-summary updated-at">动态 ${fmt(w.updatedAt)}</span></td></tr><tr class="detail-row" id="detail-${safe(w.id)}" ${isOpen?'':'hidden'}><td colspan="5"><div class="evidence-line"><b>记录依据：</b>${safe(w.evidence||'尚未记录')} ${w.owner?` · 负责：${safe(w.owner)}`:''}</div><div class="task-grid">${w.tasks.map(t=>taskDetails(t)).join('')||'<p class="unknown">此窗口暂无任务清单，未计入完成百分比。</p>'}</div></td></tr>`;
-  }).join('') || '<tr><td colspan="5">此筛选下暂无窗口。</td></tr>';
+  }).join('') || '<tr><td colspan="5">此筛选下暂无窗口。</td></tr>');
   renderDetail();
   if(typeof renderTimeline==='function')renderTimeline();
+  if(globalThis.DashboardNavigation)DashboardNavigation.render();
   applyColors();
+  if(refreshError)showRefreshError(refreshError);
   $('source').textContent = `任务记录${data.sourceHealth.markdownBoards?' · Markdown 看板':''} · 窗口动态${data.sourceHealth.codex==='ok'?'已接入':data.sourceHealth.codex==='disabled'?'未接入':'暂不可用'}`;
 }
 const markupCache=new Map();
@@ -148,7 +145,7 @@ function setMarkup(id,html) {
 function renderDetail() {
   if(!current)return;
   const view=route();
-  $('overview-view').hidden=!view.overview;
+  $('overview-view').hidden=view.page!=='overview';
   $('detail-view').hidden=view.overview;
   if(view.overview)return;
   const lane=view.laneId ? current.lanes.find(l=>l.id===view.laneId) : null;
@@ -175,7 +172,6 @@ function renderDetail() {
   document.title=`${heading} · ${current.project}`;
   $('detail-description').textContent=invalid?'这个地址可能已经过期，请从左侧选择模块或返回总览。':selected?.summary||lane?.description||`${windows.length} 个窗口共同推进 · 已记录 ${tracked.length} 项任务，已完成 ${done} 项。`;
   setMarkup('breadcrumbs',`<a href="#/overview">${safe(current.project)}</a><span aria-hidden="true">/</span>${selected?`<a href="${safe(pageHash(lane?.id||selected.laneId))}">${safe(selected.lane)}</a><span aria-hidden="true">/</span>`:''}<span>${safe(selected?'窗口详情':lane?.title||'全部任务')}</span>`);
-  setMarkup('module-nav',`<a href="${pageHash(null)}" ${!view.laneId?'aria-current="page"':''}><span>全部模块</span><small>${windowsOf(current).length}</small></a>`+current.lanes.map(l=>`<a href="${safe(pageHash(l.id))}" ${l.id===view.laneId?'aria-current="page"':''}><span>${safe(l.title)}</span><small>${l.windows.length}</small></a>`).join(''));
   const stats=[['已记录任务',tracked.length,'all'],['已完成',done,'done'],['待完成',tracked.length-done,'pending'],['有阻塞',tracked.filter(blocked).length,'blocked']];
   setMarkup('detail-stats',stats.map(([name,value,key])=>`<a class="detail-stat ${status===key?'selected':''}" href="${safe(filterLink(key))}"><span>${name}</span><strong>${value}</strong></a>`).join(''));
   $('all-windows-link').href=pageHash(view.laneId,{milestone,activity});
@@ -203,6 +199,7 @@ function renderDetail() {
 }
 function onRouteChange() {
   if(!current)return;
+  if(globalThis.DashboardNavigation){DashboardNavigation.routeChanged();return;}
   renderDetail();
   if(route().overview){document.title=`${current.project} · 项目进度`;window.scrollTo(0,0);return;}
   requestAnimationFrame(()=>{
@@ -219,43 +216,57 @@ $('detail-search').addEventListener('input',event=>{
   const options=Object.fromEntries(view.params);
   delete options.task;
   options.q=event.target.value;
-  history.replaceState(null,'',pageHash(view.laneId,options));
+  if(globalThis.DashboardNavigation)DashboardNavigation.replaceHash(pageHash(view.laneId,options));else history.replaceState(history.state,'',pageHash(view.laneId,options));
   renderDetail();
 });
 async function loadProjects(){
   try{
     const response=await fetch('/api/projects',{cache:'no-store'});
     if(!response.ok)throw Error('项目列表暂不可读');
-    const value=await response.json();projectCatalog=value.projects;
+    const value=await response.json();projectCatalog=value.projects;$('project-select').disabled=false;
     $('project-select').innerHTML=projectCatalog.map(p=>`<option value="${safe(p.id)}">${safe(p.name)}</option>`).join('');
     const selected=new URLSearchParams(location.search).get('project')||current?.projectId;
     if(projectCatalog.some(p=>p.id===selected))$('project-select').value=selected;
   }catch{$('project-select').innerHTML='<option value="">项目列表暂不可用</option>'}
 }
 $('project-select').addEventListener('change',()=>{
-  const url=new URL(location.href);url.searchParams.set('project',$('project-select').value);url.hash='/overview';location.assign(url.href);
+  if(globalThis.DashboardNavigation)DashboardNavigation.saveView();
+  $('project-select').disabled=true;location.assign(TaskmapRoutes.switchProject(location.href,$('project-select').value));
 });
-async function refresh() {
-  clearTimeout(timer);
+let refreshing=false,refreshError=null;
+function showRefreshError(error){
+  $('live').textContent='同步中断';$('live').classList.add('error');
+  $('warnings').hidden=false;
+  const message=error.name==='AbortError'?'连接超时，请重试。':error.message;
+  $('warnings').textContent=`${current?'当前显示上次成功读取的记录。 ':''}${message}`;
+  $('load-actions').hidden=false;$('signin-link').hidden=!error.auth;
+  if(!current){$('load-state').textContent='暂时无法读取项目';$('load-state').hidden=false;}
+}
+async function refresh(manual=false) {
+  if(refreshing)return;refreshing=true;clearTimeout(timer);
+  if(manual&&$('project-select').disabled)loadProjects();
+  const button=$('refresh-now');if(button){button.disabled=true;button.textContent=manual?'刷新中…':'刷新';button.setAttribute('aria-busy','true');}
+  if(!current){$('load-state').hidden=false;$('load-state').textContent='正在读取项目…';$('load-actions').hidden=true;}
+  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),15000);
   try {
     const project=new URLSearchParams(location.search).get('project');
-    const response=await fetch('/api/state'+(project?'?project='+encodeURIComponent(project):''),{cache:'no-store'});
-    if(project&&!response.headers.get('content-type')?.includes('application/json'))throw Error('登录可能已过期，请通过“我的项目”重新登录。');
+    const response=await fetch('/api/state'+(project?'?project='+encodeURIComponent(project):''),{cache:'no-store',signal:controller.signal});
+    if(response.status===401||response.redirected&&new URL(response.url).pathname.startsWith('/login')){
+      const link=$('signin-link');link.href='/login?next='+encodeURIComponent(location.pathname+location.search+location.hash);link.hidden=false;const error=new Error('登录已过期，请重新登录后继续查看。');error.auth=true;throw error;
+    }
+    if(!response.headers.get('content-type')?.includes('application/json'))throw Error('登录可能已过期，请通过“我的项目”重新登录。');
     const data=await response.json();
     if(!response.ok)throw Error(data.error||'读取失败');
-    const firstLoad=!current;
+    const firstLoad=!current;refreshError=null;
     render(data);
     if(firstLoad)onRouteChange();
   } catch(error) {
-    $('live').textContent='同步中断';$('live').classList.add('error');
-    $('warnings').hidden=false;
-    $('warnings').textContent=`${current?'当前显示上次成功读取的记录。 ':''}${error.message}`;
-  } finally {timer=setTimeout(refresh,(current?.refreshSeconds||5)*1000)}
+    refreshError=error;showRefreshError(error);
+  } finally {clearTimeout(timeout);refreshing=false;if(button){button.disabled=false;button.textContent='刷新';button.removeAttribute('aria-busy');}timer=setTimeout(refresh,(current?.refreshSeconds||5)*1000)}
 }
 document.querySelectorAll('[data-filter]').forEach(button=>button.addEventListener('click',()=>{
-  filter=button.dataset.filter;
-  document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('selected',b===button));
-  if(current)render(current);
+  const hash='#/windows'+(button.dataset.filter==='all'?'':'?filter='+button.dataset.filter);
+  if(globalThis.DashboardNavigation)DashboardNavigation.navigate(hash);else location.hash=hash;
 }));
 $('rows').addEventListener('click',event=>{
   const button=event.target.closest('[data-window]');if(!button)return;

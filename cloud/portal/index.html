@@ -1,10 +1,17 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>我的项目 · 进度看板</title><link rel="icon" href="/favicon.svg?v=taskmark2" type="image/svg+xml"><link rel="stylesheet" href="/portal.css"><script src="/portal.js" defer></script></head>
-<body><main><header><a class="brand" href="/"><img class="brandmark" src="/favicon.svg?v=taskmark2" width="34" height="34" alt="Taskmap"> <span>项目进度看板</span></a><div><span id="account">正在验证登录…</span> <a href="/login?mode=password">修改密码</a> <button id="logout">退出</button></div></header>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>我的项目 · 进度看板</title><link rel="icon" href="/favicon.svg?v=taskmark2" type="image/svg+xml"><link rel="stylesheet" href="/portal.css"><link rel="stylesheet" href="/navigation.css"><script src="/portal.js" defer></script></head>
+<body class="has-sidebar portal-shell"><a class="skip-link" href="#main-content">跳到内容</a>
+<button id="nav-backdrop" class="nav-backdrop" aria-label="关闭导航" hidden></button>
+<aside id="app-sidebar" class="app-sidebar" aria-label="账户导航">
+<div class="sidebar-brand"><a href="/"><img src="/favicon.svg" width="32" height="32" alt=""><strong>Taskmap</strong></a><button id="nav-close" aria-label="关闭导航">×</button></div>
+<div class="sidebar-project"><span>我的空间</span><b id="account">正在验证登录…</b></div>
+<p class="sidebar-label">工作空间</p><nav class="primary-nav" aria-label="主要页面"><a href="#projects-section" aria-current="page"><span aria-hidden="true">◫</span>我的项目</a><a href="#connection-help"><span aria-hidden="true">▤</span>连接电脑指南</a></nav>
+<div class="sidebar-bottom"><a href="/login?mode=password">修改密码</a><span>项目数据仅自己可见</span></div></aside>
+<main class="app-main" id="main-content" tabindex="-1"><header class="app-topbar portal-topbar"><div class="nav-location"><button id="nav-toggle" aria-label="打开导航" aria-controls="app-sidebar" aria-expanded="false">☰</button><span>工作空间 / 我的项目</span></div><div class="portal-header-actions"><button id="logout">退出登录</button></div></header>
 <section class="hero"><p>YOUR PROJECTS</p><h1>你的项目，各条支线一目了然</h1><span>连接自己的电脑，将已记录的进度同步到这里。电脑离线时保留最后一次记录。</span></section>
 <p id="notice" role="status" hidden></p>
 <section class="panel pairing" id="pair-panel" hidden><h2>连接这台电脑</h2><p id="pair-description"></p><label>选择接收进度的项目<select id="pair-project"></select></label><p class="hint">仅确认你自己刚刚发起的配对。连接后，这台电脑可以上传所选项目的进度。</p><button id="approve">确认连接</button></section>
-<section class="panel"><div class="section-head"><h2>我的项目</h2><button id="refresh">刷新</button></div><form id="create-project"><label class="sr-only" for="project-name">新项目名称</label><input id="project-name" placeholder="例如：新产品开发" maxlength="120" required><button type="submit">新建项目</button></form><div id="projects" class="projects"></div></section>
-<section class="panel" id="devices-panel" hidden><div class="section-head"><h2 id="devices-title">连接的电脑</h2><button id="close-devices">收起</button></div><div id="devices"></div></section>
-<section class="panel help"><h2>在另一台电脑使用</h2><ol><li>在那台电脑运行看板程序，填写自己的项目和任务。</li><li>运行同步程序的“连接”命令，浏览器会打开此网站的配对页。</li><li>用自己的账号登录，选择自己的项目，再确认连接。</li><li>保持同步程序运行，网站就会收到持续更新。</li></ol><p>登录账号之间的数据独立。其他人不能看到你的项目，也不需要你的 Cloudflare 部署账号。</p><p class="hint">同步上传进度摘要和任务记录，不读取完整聊天内容；本地代码的变动需要由负责窗口更新任务记录后，才会反映到进度。</p></section>
+<section class="panel" id="projects-section"><div class="section-head"><h2>我的项目</h2><button id="refresh">刷新</button></div><form id="create-project"><label class="sr-only" for="project-name">新项目名称</label><input id="project-name" placeholder="例如：新产品开发" maxlength="120" required><button type="submit">新建项目</button></form><div id="projects" class="projects" aria-live="polite"><p class="hint">正在加载项目…</p></div></section>
+<dialog id="devices-panel" aria-labelledby="devices-title"><section class="panel"><div class="section-head"><h2 id="devices-title">连接的电脑</h2><button id="close-devices" autofocus>关闭</button></div><div id="devices" role="status"></div></section></dialog>
+<section class="panel help connection-help" id="connection-help"><h2>在另一台电脑使用</h2><ol><li>在那台电脑运行看板程序，填写自己的项目和任务。</li><li>运行同步程序的“连接”命令，浏览器会打开此网站的配对页。</li><li>用自己的账号登录，选择自己的项目，再确认连接。</li><li>保持同步程序运行，网站就会收到持续更新。</li></ol><p>登录账号之间的数据独立。其他人不能看到你的项目，也不需要你的 Cloudflare 部署账号。</p><p class="hint">同步上传进度摘要和任务记录，不读取完整聊天内容；本地代码的变动需要由负责窗口更新任务记录后，才会反映到进度。</p></section>
 <footer>本机数据 → 你的项目空间 · 未提供公开分享功能</footer></main></body></html>

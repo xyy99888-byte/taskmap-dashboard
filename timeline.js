@@ -30,6 +30,8 @@ function renderTimeline(){
   setMarkup('timeline-lane','<option value="">全部模块</option>'+current.lanes.map(l=>`<option value="${safe(l.id)}">${safe(l.title)}</option>`).join(''));
   if(!current.lanes.some(l=>l.id===timelineState.lane))timelineState.lane='';
   $('timeline-lane').value=timelineState.lane;
+  $('timeline-scale').value=timelineState.scale;
+  $('timeline-status').value=timelineState.status;
   $('timeline-status-control').hidden=timelineState.mode!=='schedule';
   const windows=windowsOf(current).filter(w=>!timelineState.lane||w.laneId===timelineState.lane);
   const tasks=windows.flatMap(w=>w.tasks).filter(t=>t.status!=='cancelled');

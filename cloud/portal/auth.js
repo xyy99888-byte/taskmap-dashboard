@@ -19,7 +19,7 @@ $('username-label').hidden=mode==='password';$('username').required=mode!=='pass
 $('confirm-label').hidden=mode==='login';$('confirm-password').required=mode!=='login';
 if(mode!=='login'){$('password').autocomplete='new-password';$('password-label').textContent=mode==='register'?'密码（至少 14 个字符）':'新密码（至少 14 个字符）';$('auth-links').innerHTML='<a href="/login">返回登录</a>'}
 $('auth-form').addEventListener('submit',async event=>{
-  event.preventDefault();message('');
+  event.preventDefault();if($('submit').disabled)return;message('');
   if(mode==='register'&&!$('invite-label').hidden){
     const value=$('invite-input').value.trim();
     try{invite=/^[a-f0-9]{64}$/.test(value)?value:new URLSearchParams(new URL(value).hash.slice(1)).get('invite')||''}catch{invite=''}
@@ -28,15 +28,15 @@ $('auth-form').addEventListener('submit',async event=>{
   const pass=$('password').value;
   if(mode!=='login'&&[/\p{L}/u,/\p{N}/u,/[\p{P}\p{S}]/u].filter(pattern=>pattern.test(pass)).length<2){message('密码必须包含字母、数字、符号中的至少两类；空格不计作符号。');return}
   if(mode!=='login'&&pass!==$('confirm-password').value){message('两次输入的密码不一致。');return}
-  $('submit').disabled=true;
+  const submitLabel=$('submit').textContent;$('submit').disabled=true;$('submit').textContent='处理中…';$('submit').setAttribute('aria-busy','true');
   try{
-    const response=await fetch('/api/auth/'+mode,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('username').value,password:pass,currentPassword:$('current-password').value,invite,recoveryCode:$('recovery-input').value.trim()})});
+    const response=await fetch('/api/auth/'+mode,{method:'POST',signal:AbortSignal.timeout(15000),headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('username').value,password:pass,currentPassword:$('current-password').value,invite,recoveryCode:$('recovery-input').value.trim()})});
     const result=await response.json();if(!response.ok)throw Error(result.error||'操作失败，请重试。');
     $('password').value='';$('current-password').value='';$('confirm-password').value='';$('recovery-input').value='';invite='';
     $('invite-input').value='';history.replaceState(null,'',location.pathname+location.search);
     if(result.recoveryCode){recoveryCode=result.recoveryCode;$('auth-form').hidden=true;$('auth-links').hidden=true;$('recovery-result').hidden=false;$('recovery-output').textContent=recoveryCode}
     else location.replace(next);
-  }catch(error){message(error.message)}finally{$('submit').disabled=false}
+  }catch(error){message(error.message)}finally{$('submit').disabled=false;$('submit').textContent=submitLabel;$('submit').removeAttribute('aria-busy')}
 });
 $('saved').addEventListener('change',()=>{$('continue').disabled=!$('saved').checked});
 $('continue').addEventListener('click',()=>{if($('saved').checked)location.replace(next)});
