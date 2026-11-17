@@ -10,11 +10,11 @@
 
 在线地址：**[board.taskmap.workers.dev](https://board.taskmap.workers.dev/)**
 
-在线版目前采用邀请注册。已有账号可以直接登录；新用户需要向作者获取邀请。也可以在获得仓库访问权限后下载代码，在自己的电脑运行或部署自己的服务。
+在线版目前采用邀请注册。已有账号可以直接登录；新用户需要向作者获取邀请。也欢迎从本公开仓库下载代码，在自己的电脑运行或部署自己的服务。
 
 ## 问题反馈与建议
 
-有仓库访问权限的用户，欢迎通过 [GitHub Issues](https://github.com/xyy99888-byte/taskmap-dashboard/issues) 反馈问题或提出建议；没有仓库访问权限的用户，可以通过作者分享此网页时提供的联系渠道反馈。
+欢迎通过 [GitHub Issues](https://github.com/xyy99888-byte/taskmap-dashboard/issues) 反馈问题或提出建议。QQ群交流入口将在群创建完成后补充；也可以通过作者分享此网页时提供的联系渠道反馈。
 
 反馈问题时，请尽量说明：
 
