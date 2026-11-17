@@ -82,10 +82,13 @@ function render(data) {
   $('live').classList.remove('error');
   const cloud=data.transport?.mode==='cloud';
   $('cloud-home').hidden=!cloud;
+  $('trial-usage').hidden=!cloud||!data.trial;
+  if(cloud&&data.trial)$('trial-usage').textContent=data.trial.exempt?`作者账号 · ${data.trial.usedWindows} 个窗口 · 不限额度`:`免费试用 · ${data.trial.usedWindows}/${data.trial.windowLimit} 个窗口 · 现阶段不收费`;
   $('view-location').textContent=cloud?'仅登录后查看自己的项目':'仅在这台电脑上查看';
   if(cloud){
     $('live').textContent=data.transport.online?'本机同步中':data.transport.receivedAt?'本机离线':'等待本机连接';
-    $('live').classList.toggle('error',!data.transport.online);
+    if(data.transport.syncIssue)$('live').textContent='同步受限';
+    $('live').classList.toggle('error',!!data.transport.syncIssue||!data.transport.online);
     $('refresh-rate').textContent=data.transport.receivedAt?'收到本机数据：'+fmt(data.transport.receivedAt):'尚未收到本机数据';
   }
   $('warnings').hidden = !data.warnings?.length;

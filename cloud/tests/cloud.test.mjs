@@ -1,4 +1,4 @@
-import {test,before,after} from 'node:test';
+import {test,before,after,beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {Miniflare} from 'miniflare';
@@ -6,7 +6,7 @@ import {generateKeyPair,exportJWK,SignJWT,createLocalJWKSet} from 'jose';
 import worker,{webApi,syncApi,identity,snapshot,digest} from '../src/worker.mjs';
 
 let runtime,DB;
-const userA={id:'owner-alice',email:'alice@example.test'},userB={id:'owner-bob',email:'bob@example.test'};
+let userA={id:'owner-alice',email:'alice@example.test'},userB={id:'owner-bob',email:'bob@example.test'};
 const base='https://dashboard.example.test';
 function request(path,method='GET',value,headers={}){
   return new Request(base+path,{method,headers:{...(value?{'content-type':'application/json',origin:base}:{}),...headers},body:value?JSON.stringify(value):undefined});
@@ -46,10 +46,10 @@ test('schedule and bounded observed history survive cloud normalization without 
 before(async()=>{
   runtime=new Miniflare({modules:true,script:'export default {fetch(){return new Response("test")}}',compatibilityDate:'2026-07-01',d1Databases:['DB']});
   DB=await runtime.getD1Database('DB');
-  const sql=await readFile(new URL('../migrations/0001_cloud.sql',import.meta.url),'utf8');
-  for(const statement of sql.split(';').map(x=>x.trim()).filter(Boolean))await DB.prepare(statement).run();
+  for(const file of ['0001_cloud.sql','0003_trial_limits.sql']){const sql=await readFile(new URL('../migrations/'+file,import.meta.url),'utf8');for(const statement of sql.split(';').map(x=>x.trim()).filter(Boolean))await DB.prepare(statement).run();}
 });
 after(async()=>{await runtime?.dispose()});
+beforeEach(()=>{userA={id:'alice-'+crypto.randomUUID(),email:'alice@example.test'};userB={id:'bob-'+crypto.randomUUID(),email:'bob@example.test'};});
 
 test('Cloudflare JWT signature, audience, issuer and expiry must match',async()=>{
   const {privateKey,publicKey}=await generateKeyPair('RS256');const key=await exportJWK(publicKey);key.kid='test-key';
@@ -129,4 +129,70 @@ test('server recomputes percentages and strips unknown snapshot fields',()=>{
 test('public sync endpoint never serves data and rejects absent credentials',async()=>{
   const response=await worker.fetch(request('/api/state'),{SERVICE_MODE:'sync',DB});assert.equal(response.status,405);
   await assert.rejects(syncApi(request('/v1/snapshot','POST',{snapshot:data(),sequence:1}),{DB}),e=>e.status===401);
+});
+
+
+test('trial project creation is atomic at ten per owner and separate between owners',async()=>{
+  for(let i=0;i<9;i++)await createProject(userA);await createProject(userB);
+  const attempts=await Promise.allSettled([createProject(userA),createProject(userA),createProject(userA)]);
+  assert.equal(attempts.filter(r=>r.status==='fulfilled').length,1);
+  assert.ok(attempts.filter(r=>r.status==='rejected').every(r=>r.reason.status===422));
+  const list=await(await webApi(request('/api/projects'),{DB},userA)).json();
+  assert.equal(list.projects.length,10);assert.equal(list.trial.maxProjects,10);assert.equal(list.trial.charging,false);
+  assert.equal((await(await webApi(request('/api/projects'),{DB},userB)).json()).projects.length,1);
+});
+function windowsData(count){return {project:'额度测试',lanes:[{id:'a',windows:Array.from({length:Math.min(count,6)},(_,i)=>({id:'w'+i,tasks:[]}))},{id:'b',windows:Array.from({length:Math.max(0,count-6)},(_,i)=>({id:'other'+i,tasks:[]}))}]};}
+function uploadData(device,count,sequence){return syncApi(request('/v1/snapshot','POST',{sequence,snapshot:windowsData(count)},{authorization:'Bearer '+device.token}),{DB});}
+test('window quota spans modules and empty windows; overflow preserves snapshot and recovery clears the issue',async()=>{
+  const project=await createProject(userA),device=await pair(userA,project.id);
+  assert.equal((await uploadData(device,10,1)).status,200);
+  await assert.rejects(uploadData(device,11,2),e=>e.status===422&&e.message.includes('现阶段不收费'));
+  let state=await(await webApi(request('/api/state?project='+project.id),{DB},userA)).json();
+  assert.equal(state.lanes.flatMap(l=>l.windows).length,10);assert.equal(state.trial.windowLimit,10);
+  assert.equal(state.transport.syncIssue.kind,'window_limit');assert.ok(state.warnings.some(w=>w.includes('11')));
+  assert.equal((await DB.prepare('SELECT sequence FROM snapshots WHERE project_id=?').bind(project.id).first()).sequence,1);
+  await uploadData(device,9,3);
+  state=await(await webApi(request('/api/state?project='+project.id),{DB},userA)).json();
+  assert.equal(state.trial.usedWindows,9);assert.equal(state.transport.syncIssue,null);assert.deepEqual(state.warnings,[]);
+  await assert.rejects(uploadData(device,11,4),e=>e.status===422);
+  await webApi(request('/api/devices/revoke','POST',{id:device.deviceId}),{DB},userA);
+  assert.equal((await(await webApi(request('/api/state?project='+project.id),{DB},userA)).json()).transport.syncIssue,null);
+});
+test('first over-quota upload leaves empty state with feedback and no cross-account visibility',async()=>{
+  const project=await createProject(userA),device=await pair(userA,project.id);
+  await assert.rejects(uploadData(device,11,1),e=>e.status===422);
+  const state=await(await webApi(request('/api/state?project='+project.id),{DB},userA)).json();
+  assert.equal(state.lanes.length,0);assert.equal(state.transport.receivedAt,null);assert.equal(state.trial.usedWindows,0);assert.ok(state.warnings.length);
+  await assert.rejects(webApi(request('/api/state?project='+project.id),{DB},userB),e=>e.status===404);
+});
+test('migration grants a fixed legacy window allowance without losing older projects',async()=>{
+  const project=await createProject(userA),device=await pair(userA,project.id);
+  const serialized=JSON.stringify(snapshot(windowsData(13)));
+  await DB.prepare('INSERT INTO snapshots(project_id,device_id,body,received_at,sequence) VALUES(?,?,?,?,?)').bind(project.id,device.deviceId,serialized,Math.floor(Date.now()/1000),1).run();
+  for(let i=0;i<10;i++)await DB.prepare('INSERT INTO projects(id,owner_id,name,created_at) VALUES(?,?,?,?)').bind(crypto.randomUUID(),userA.id,'历史项目',1).run();
+  const migration=await readFile(new URL('../migrations/0003_trial_limits.sql',import.meta.url),'utf8');
+  for(const statement of migration.split(';').map(x=>x.trim()).filter(Boolean))await DB.prepare(statement).run();
+  assert.equal((await uploadData(device,13,2)).status,200);
+  await assert.rejects(uploadData(device,14,3),e=>e.status===422);
+  const list=await(await webApi(request('/api/projects'),{DB},userA)).json();
+  assert.equal(list.projects.length,11);assert.equal(list.projects.find(p=>p.id===project.id).windowLimit,13);
+  await assert.rejects(createProject(userA),e=>e.status===422);
+  await uploadData(device,8,4);assert.equal((await uploadData(device,13,5)).status,200);
+});
+
+
+test('only server-granted author account bypasses project and window quotas',async()=>{
+  await DB.prepare('INSERT INTO account_entitlements(owner_id,unlimited) VALUES(?,1)').bind(userA.id).run();
+  for(let i=0;i<11;i++)await createProject(userA);
+  const list=await(await webApi(request('/api/projects'),{DB},userA)).json();
+  assert.equal(list.projects.length,11);assert.equal(list.trial.exempt,true);assert.equal(list.trial.maxProjects,null);
+  const project=list.projects[0],device=await pair(userA,project.id);
+  assert.equal((await uploadData(device,15,1)).status,200);
+  const state=await(await webApi(request('/api/state?project='+project.id),{DB},userA)).json();
+  assert.equal(state.trial.windowLimit,null);assert.equal(state.trial.usedWindows,15);
+  assert.equal(list.projects[0].windowLimit,null);
+  const regular=await(await webApi(request('/api/projects'),{DB},userB)).json();
+  assert.equal(regular.trial.exempt,false);assert.equal(regular.trial.maxProjects,10);
+  const other=await(await webApi(request('/api/projects','POST',{name:'不能自授',unlimited:true,exempt:true}),{DB},userB)).json();
+  await assert.rejects(uploadData(await pair(userB,other.id),11,1),e=>e.status===422);
 });

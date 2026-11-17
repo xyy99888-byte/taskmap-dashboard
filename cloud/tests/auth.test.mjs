@@ -15,7 +15,7 @@ async function register(username){const response=await call('/api/auth/register'
 before(async()=>{
   runtime=new Miniflare({modules:true,script:'export default {fetch(){return new Response("test")}}',compatibilityDate:'2026-07-01',d1Databases:['DB']});
   DB=await runtime.getD1Database('DB');
-  for(const file of ['0001_cloud.sql','0002_accounts.sql']){const sql=await readFile(new URL('../migrations/'+file,import.meta.url),'utf8');for(const statement of sql.split(';').map(x=>x.trim()).filter(Boolean))await DB.prepare(statement).run()}
+  for(const file of ['0001_cloud.sql','0002_accounts.sql','0003_trial_limits.sql']){const sql=await readFile(new URL('../migrations/'+file,import.meta.url),'utf8');for(const statement of sql.split(';').map(x=>x.trim()).filter(Boolean))await DB.prepare(statement).run()}
   env={SERVICE_MODE:'web',AUTH_MODE:'password',DB,ASSETS:{fetch:async()=>new Response('static-page')}};
 });
 after(async()=>{await runtime?.dispose()});

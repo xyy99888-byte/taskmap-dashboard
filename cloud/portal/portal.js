@@ -2,9 +2,16 @@ const $=id=>document.getElementById(id);
 const safe=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time=epoch=>epoch?new Date(epoch*1000).toLocaleString('zh-CN'):'尚未同步';
 let code=new URLSearchParams(location.search).get('pair');
-let projects=[];
+let projects=[],trial=null;
 let deviceProject=null,deviceRequest=0,loading=null,pairingBusy=false;
 function busy(button,value,label){if(value){button.dataset.label=button.textContent;button.textContent=label;button.disabled=true;button.setAttribute('aria-busy','true')}else{button.textContent=button.dataset.label||button.textContent;button.disabled=false;button.removeAttribute('aria-busy')}}
+function updateTrial(){
+  const limit=trial?.maxProjects,full=!!trial&&!trial.exempt&&projects.length>=limit;
+  const button=$('create-project').querySelector('button');
+  button.disabled=!trial||full||$('project-name').disabled;
+  button.title=full?'已达到免费试用项目额度，现阶段不收费，欢迎反馈更多额度需求。':'';
+  $('trial-usage').textContent=trial?.exempt?`作者账号 · 已有 ${projects.length} 个项目 · 项目数和窗口数不限`:trial?`已使用 ${projects.length} / ${limit} 个项目 · 每个新项目最多 ${trial.maxWindowsPerProject} 个窗口${projects.length>limit?'。历史项目已保留，可以继续查看和同步。':''}`:'暂时无法读取额度，请刷新重试。';
+}
 function notice(message){$('notice').hidden=!message;$('notice').textContent=message}
 async function api(path,method='GET',value){const response=await fetch(path,{method,headers:value?{'Content-Type':'application/json'}:{},body:value?JSON.stringify(value):undefined,cache:'no-store',signal:AbortSignal.timeout(15000)});if(response.status===401){location.replace('/login?next='+encodeURIComponent(location.pathname+location.search));throw Error('请重新登录。')}const data=await response.json();if(!response.ok)throw Error(data.error||'请求失败');return data}
 function load(){
@@ -13,9 +20,9 @@ function load(){
   loading=loadProjects().catch(error=>{if(!projects.length)$('projects').innerHTML='<p class="hint">暂时无法加载项目，请点击刷新重试。</p>';throw error;}).finally(()=>{loading=null;busy($('refresh'),false)});return loading;
 }
 async function loadProjects(){
-  const [me,list]=await Promise.all([api('/api/me'),api('/api/projects')]);projects=list.projects;
+  const [me,list]=await Promise.all([api('/api/me'),api('/api/projects')]);projects=list.projects;trial=list.trial;updateTrial();
   $('account').textContent=me.email;
-  const markup=projects.map(p=>`<article class="project"><span class="state ${p.online?'online':''}">${p.online?'● 本机正在同步':p.received_at?'○ 本机离线，保留上次记录':'○ 等待连接电脑'}</span><h3>${safe(p.name)}</h3><p>最近收到数据：${safe(time(p.received_at))}</p><div class="actions"><a href="/dashboard/?project=${encodeURIComponent(p.id)}#/overview">进入看板 →</a><button data-devices="${safe(p.id)}">管理电脑</button></div></article>`).join('')||'<p class="hint">先新建一个项目，再连接你的电脑。</p>';
+  const markup=projects.map(p=>`<article class="project"><span class="state ${p.online?'online':''}">${p.online?'● 本机正在同步':p.received_at?'○ 本机离线，保留上次记录':'○ 等待连接电脑'}</span><h3>${safe(p.name)}</h3><p>${p.windowCount} / ${p.windowLimit===null?'不限':p.windowLimit} 个窗口${!trial.exempt&&p.windowLimit>trial.maxWindowsPerProject?' · 历史保留额度':''}</p><p>最近收到数据：${safe(time(p.received_at))}</p><div class="actions"><a href="/dashboard/?project=${encodeURIComponent(p.id)}#/overview">进入看板 →</a><button data-devices="${safe(p.id)}">管理电脑</button></div></article>`).join('')||'<p class="hint">先新建一个项目，再连接你的电脑。</p>';
   if($('projects').dataset.markup!==markup){const focused=document.activeElement.dataset?.devices;$('projects').innerHTML=markup;$('projects').dataset.markup=markup;if(focused)[...$('projects').querySelectorAll('[data-devices]')].find(b=>b.dataset.devices===focused)?.focus({preventScroll:true});}
   const previousProject=$('pair-project').value;
   $('pair-project').innerHTML=projects.map(p=>`<option value="${safe(p.id)}">${safe(p.name)}</option>`).join('');
@@ -36,7 +43,7 @@ $('create-project').addEventListener('submit',async event=>{
   const input=$('project-name'),name=input.value.trim();if(!name){input.setCustomValidity('请输入项目名称');input.reportValidity();return;}
   busy(button,true,'创建中…');input.disabled=true;
   try{await api('/api/projects','POST',{name});input.value='';notice('项目已创建，可以进入看板或连接电脑。');if(loading)await loading;await load();}
-  catch(e){notice(e.message)}finally{busy(button,false);input.disabled=false;input.focus();}
+  catch(e){notice(e.message)}finally{busy(button,false);input.disabled=false;updateTrial();input.focus();}
 });
 $('project-name').addEventListener('input',()=>{$('project-name').setCustomValidity('')});
 $('approve').addEventListener('click',async()=>{
@@ -49,7 +56,7 @@ $('close-devices').addEventListener('click',()=>{$('devices-panel').close();devi
 $('projects').addEventListener('click',event=>{const button=event.target.closest('[data-devices]');if(button)devices(button.dataset.devices).catch(e=>notice(e.message))});
 $('devices').addEventListener('click',async event=>{const button=event.target.closest('[data-revoke]');if(!button||button.disabled||!confirm('撤销后，这台电脑将不能继续上传此项目。确认撤销？'))return;const project=deviceProject,request=deviceRequest;busy(button,true,'撤销中…');try{await api('/api/devices/revoke','POST',{id:button.dataset.revoke});if($('devices-panel').open&&request===deviceRequest)await devices(project)}catch(e){notice(e.message);busy(button,false)}});
 $('logout').addEventListener('click',async()=>{if($('logout').disabled)return;busy($('logout'),true,'退出中…');try{await api('/api/auth/logout','POST',{});location.replace('/login')}catch(error){notice(error.message);busy($('logout'),false)}});
-load().catch(e=>notice(e.message));
+updateTrial();load().catch(e=>notice(e.message));
 setInterval(()=>{if(!document.hidden&&!$('devices-panel').open&&!pairingBusy&&!document.activeElement.closest('form'))load().catch(e=>notice(e.message))},15000);
 
 const mobile=matchMedia('(max-width: 900px)');

@@ -5,6 +5,13 @@ const encoder=new TextEncoder();
 const jwksCache=new Map();
 const statuses=new Set(['todo','in_progress','review','blocked','done','cancelled']);
 const MAX_BODY=512*1024;
+const TRIAL={phase:'trial',charging:false,maxProjects:10,maxWindowsPerProject:10};
+async function accountTrial(db,owner){
+  const grant=await db.prepare('SELECT unlimited FROM account_entitlements WHERE owner_id=?').bind(owner).first();
+  return grant?.unlimited===1?{...TRIAL,exempt:true,maxProjects:null,maxWindowsPerProject:null}:{...TRIAL,exempt:false};
+}
+const windowCount=data=>data.lanes.reduce((n,l)=>n+l.windows.length,0);
+async function windowLimit(db,id){return (await db.prepare('SELECT max_windows FROM trial_window_limits WHERE project_id=?').bind(id).first())?.max_windows||TRIAL.maxWindowsPerProject;}
 class HttpError extends Error {constructor(status,message){super(message);this.status=status}}
 const fail=(status,message)=>{throw new HttpError(status,message)};
 const now=()=>Math.floor(Date.now()/1000);
@@ -106,19 +113,27 @@ export async function webApi(request,env,user){
   const url=new URL(request.url),path=url.pathname,db=env.DB;
   if(request.method==='GET'&&path==='/api/me')return json({email:user.email});
   if(request.method==='GET'&&path==='/api/projects'){
-    const {results}=await db.prepare('SELECT p.id,p.name,p.created_at,s.received_at,d.revoked_at FROM projects p LEFT JOIN snapshots s ON s.project_id=p.id LEFT JOIN devices d ON d.id=s.device_id WHERE p.owner_id=? ORDER BY p.created_at DESC').bind(user.id).all();
-    return json({projects:results.map(p=>({id:p.id,name:p.name,created_at:p.created_at,received_at:p.received_at,online:!!p.received_at&&!p.revoked_at&&now()-p.received_at<90}))});
+    const trial=await accountTrial(db,user.id);
+    const {results}=await db.prepare(`SELECT p.id,p.name,p.created_at,s.received_at,d.revoked_at,COALESCE(q.max_windows,10) AS window_limit,COALESCE((SELECT SUM(json_array_length(l.value,'$.windows')) FROM json_each(s.body,'$.lanes') l),0) AS window_count FROM projects p LEFT JOIN snapshots s ON s.project_id=p.id LEFT JOIN devices d ON d.id=s.device_id LEFT JOIN trial_window_limits q ON q.project_id=p.id WHERE p.owner_id=? ORDER BY p.created_at DESC`).bind(user.id).all();
+    return json({projects:results.map(p=>({id:p.id,name:p.name,created_at:p.created_at,windowCount:p.window_count,windowLimit:trial.exempt?null:p.window_limit,received_at:p.received_at,online:!!p.received_at&&!p.revoked_at&&now()-p.received_at<90})),trial:{...trial,usedProjects:results.length}});
   }
   if(request.method==='POST'&&path==='/api/projects'){
     sameOrigin(request);const value=await body(request);const name=text(value.name,120).trim();if(!name)fail(400,'请填写项目名称。');
     await rateLimit(db,'project:'+user.id,20,3600);
-    const id=crypto.randomUUID();await db.prepare('INSERT INTO projects(id,owner_id,name,created_at) VALUES(?,?,?,?)').bind(id,user.id,name,now()).run();return json({id,name},201);
+    const id=crypto.randomUUID();
+    const result=await db.prepare('INSERT INTO projects(id,owner_id,name,created_at) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM account_entitlements WHERE owner_id=? AND unlimited=1) OR (SELECT COUNT(*) FROM projects WHERE owner_id=?)<?').bind(id,user.id,name,now(),user.id,user.id,TRIAL.maxProjects).run();
+    if(!result.meta.changes)fail(422,'免费试用每个账号最多 10 个项目，已达到项目额度。现阶段不收费，如需更多额度请向作者反馈。');
+    return json({id,name},201);
   }
   if(request.method==='GET'&&path==='/api/state'){
     const project=await ownedProject(db,url.searchParams.get('project'),user.id);
     const row=await db.prepare('SELECT s.body,s.received_at,d.name,d.revoked_at FROM snapshots s JOIN devices d ON d.id=s.device_id WHERE s.project_id=?').bind(project.id).first();
     const data=row?JSON.parse(row.body):{project:project.name,scope:'尚未连接本机。请回到项目列表连接一台电脑。',lanes:[],warnings:[],sourceHealth:{codex:'disabled',markdownBoards:0},refreshSeconds:10,timezone:'Asia/Shanghai'};
-    data.project=project.name;data.serverCheckAt=iso(now());data.transport={mode:'cloud',receivedAt:row?iso(row.received_at):null,online:!!row&&!row.revoked_at&&now()-row.received_at<90,deviceName:row?.name||null};
+    const issue=await db.prepare('SELECT i.attempted_at,i.window_count,i.window_limit FROM sync_issues i JOIN devices d ON d.id=i.device_id WHERE i.project_id=? AND d.revoked_at IS NULL AND d.expires_at>?').bind(project.id,now()).first();
+    const trial=await accountTrial(db,user.id);
+    data.trial={...trial,usedWindows:windowCount(data),windowLimit:trial.exempt?null:await windowLimit(db,project.id)};
+    if(issue&&!trial.exempt)data.warnings=[...(data.warnings||[]),`本机新进度包含 ${issue.window_count} 个窗口，超过此项目 ${issue.window_limit} 个窗口的试用额度，本次未接收。${row?'当前保留上次成功同步的记录':'尚无成功同步的记录'}；请调整本机登记窗口后重试，或向作者反馈。现阶段不收费。`];
+    data.project=project.name;data.serverCheckAt=iso(now());data.transport={mode:'cloud',receivedAt:row?iso(row.received_at):null,online:!!row&&!row.revoked_at&&now()-row.received_at<90,deviceName:row?.name||null,syncIssue:issue&&!trial.exempt?{kind:'window_limit',attemptedAt:iso(issue.attempted_at)}:null};
     return json(data);
   }
   if(request.method==='GET'&&path==='/api/devices'){
@@ -184,9 +199,17 @@ export async function syncApi(request,env){
       const source=await db.prepare('SELECT revoked_at,expires_at FROM devices WHERE id=?').bind(existing.device_id).first();
       if(source&&!source.revoked_at&&source.expires_at>time)fail(409,'此项目已由另一台设备同步，请先在网站撤销旧设备，或新建项目。');
     }
+    if(existing?.device_id===device.id&&input.sequence<existing.sequence)fail(409,'收到过期同步数据，请重新启动同步程序。');
+    const trial=await accountTrial(db,device.owner_id);
+    const count=windowCount(normalized),limit=trial.exempt?null:await windowLimit(db,device.project_id);
+    if(limit!==null&&count>limit){
+      await db.prepare('INSERT INTO sync_issues(project_id,device_id,attempted_at,window_count,window_limit) VALUES(?,?,?,?,?) ON CONFLICT(project_id) DO UPDATE SET device_id=excluded.device_id,attempted_at=excluded.attempted_at,window_count=excluded.window_count,window_limit=excluded.window_limit').bind(device.project_id,device.id,time,count,limit).run();
+      fail(422,`免费试用每个项目最多 ${limit} 个已登记窗口，本次收到 ${count} 个，未接收此次更新，原记录已保留。请调整本机窗口清单后重试。现阶段不收费，如需更多额度请向作者反馈。`);
+    }
     const result=await db.batch([
       db.prepare('INSERT INTO snapshots(project_id,device_id,body,received_at,sequence) SELECT project_id,id,?,?,? FROM devices WHERE id=? AND revoked_at IS NULL AND expires_at>? ON CONFLICT(project_id) DO UPDATE SET device_id=excluded.device_id,body=excluded.body,received_at=excluded.received_at,sequence=excluded.sequence WHERE (snapshots.device_id=excluded.device_id AND excluded.sequence>=snapshots.sequence) OR (snapshots.device_id<>excluded.device_id AND NOT EXISTS(SELECT 1 FROM devices old WHERE old.id=snapshots.device_id AND old.revoked_at IS NULL AND old.expires_at>?))').bind(serialized,time,input.sequence,device.id,time,time),
-      db.prepare('UPDATE devices SET last_seen_at=? WHERE id=? AND revoked_at IS NULL').bind(time,device.id)
+      db.prepare('UPDATE devices SET last_seen_at=? WHERE id=? AND revoked_at IS NULL').bind(time,device.id),
+      db.prepare('DELETE FROM sync_issues WHERE project_id=? AND EXISTS(SELECT 1 FROM snapshots WHERE project_id=? AND device_id=? AND sequence=?)').bind(device.project_id,device.project_id,device.id,input.sequence)
     ]);
     if(!result[0].meta.changes)fail(409,'收到过期同步数据，请重新启动同步程序。');
     return json({ok:true,receivedAt:iso(time),projectId:device.project_id});

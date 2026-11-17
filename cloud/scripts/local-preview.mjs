@@ -9,8 +9,7 @@ import {webApi,syncApi} from '../src/worker.mjs';
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const runtime=new Miniflare({modules:true,script:'export default {fetch(){return new Response("test")}}',compatibilityDate:'2026-07-01',d1Databases:['DB']});
 const DB=await runtime.getD1Database('DB');
-const sql=await readFile(path.join(root,'migrations','0001_cloud.sql'),'utf8');
-for(const statement of sql.split(';').map(x=>x.trim()).filter(Boolean))await DB.prepare(statement).run();
+for(const file of ['0001_cloud.sql','0003_trial_limits.sql']){const sql=await readFile(path.join(root,'migrations',file),'utf8');for(const statement of sql.split(';').map(x=>x.trim()).filter(Boolean))await DB.prepare(statement).run();}
 const user={id:'preview-alice',email:'演示账号（本地测试，无公网登录）'};
 const files={'/favicon.svg':['favicon.svg','image/svg+xml'],'/':['index.html','text/html'],'/portal.js':['portal.js','text/javascript'],'/portal.css':['portal.css','text/css'],'/dashboard/':['dashboard/index.html','text/html'],'/app.js':['app.js','text/javascript'],'/style.css':['style.css','text/css']};
 for(const name of ['navigation-model.js','navigation.js','navigation.css','timeline-model.js','timeline.js'])files['/'+name]=[name,name.endsWith('.css')?'text/css':'text/javascript'];
